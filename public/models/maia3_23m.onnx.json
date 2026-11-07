@@ -1,0 +1,17 @@
+{
+  "variant": "maia3-23m",
+  "alias": "23m",
+  "history": 8,
+  "dim_emb": 128,
+  "dim_vit": 512,
+  "num_heads": 16,
+  "num_blocks": 8,
+  "head_hid_dim": 512,
+  "gab_gen_size": 128,
+  "gab_per_square_dim": 32,
+  "gab_intermediate_dim": 128,
+  "include_time_info": false,
+  "sha256": "6d3431354b6ff7487da940dc60e166dc29bb3d16b5b5a6302f8f62862d27080f",
+  "opset": 18,
+  "dynamic_batch": true
+}

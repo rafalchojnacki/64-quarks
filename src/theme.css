@@ -1,0 +1,86 @@
+/* Navy board (default) */
+cg-board {
+  background-color: #dee3e6;
+  background-image: url('/board/navy.svg');
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Walnut board */
+:root[data-theme="walnut"] cg-board {
+  background-color: #a3805c;
+  background-image: url('/board/walnut.svg');
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.45);
+}
+
+/* Graphite board */
+:root[data-theme="graphite"] cg-board {
+  background-color: #8d8d8d;
+  background-image: url('/board/graphite.svg');
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+/* Birch board */
+:root[data-theme="birch"] cg-board {
+  background-color: #ede1c7;
+  background-image: url('/board/birch.svg');
+  box-shadow: 0 0 12px rgba(90, 70, 40, 0.35);
+}
+
+/* Paper board */
+:root[data-theme="paper"] cg-board {
+  background-color: #f8f8f8;
+  background-image: url('/board/paper.svg');
+  box-shadow: 0 0 12px rgba(60, 60, 60, 0.25);
+}
+
+/* Pieces (backed by --piece-* custom properties set in main.js) */
+.cg-wrap piece.pawn.white { background-image: var(--piece-wP, url('/piece/staunty/wP.svg')); }
+.cg-wrap piece.bishop.white { background-image: var(--piece-wB, url('/piece/staunty/wB.svg')); }
+.cg-wrap piece.knight.white { background-image: var(--piece-wN, url('/piece/staunty/wN.svg')); }
+.cg-wrap piece.rook.white { background-image: var(--piece-wR, url('/piece/staunty/wR.svg')); }
+.cg-wrap piece.queen.white { background-image: var(--piece-wQ, url('/piece/staunty/wQ.svg')); }
+.cg-wrap piece.king.white { background-image: var(--piece-wK, url('/piece/staunty/wK.svg')); }
+.cg-wrap piece.pawn.black { background-image: var(--piece-bP, url('/piece/staunty/bP.svg')); }
+.cg-wrap piece.bishop.black { background-image: var(--piece-bB, url('/piece/staunty/bB.svg')); }
+.cg-wrap piece.knight.black { background-image: var(--piece-bN, url('/piece/staunty/bN.svg')); }
+.cg-wrap piece.rook.black { background-image: var(--piece-bR, url('/piece/staunty/bR.svg')); }
+.cg-wrap piece.queen.black { background-image: var(--piece-bQ, url('/piece/staunty/bQ.svg')); }
+.cg-wrap piece.king.black { background-image: var(--piece-bK, url('/piece/staunty/bK.svg')); }
+
+/* Maestro white pieces have very light fills that wash out on light squares;
+   brighten them so the dark outlines read clearly. */
+:root[data-pieces="maestro"] .cg-wrap piece.white {
+  filter: brightness(1.3);
+}
+
+/* Square highlights (per-theme colors via --board-highlight*) */
+cg-board square.last-move {
+  will-change: transform;
+  background-color: var(--board-highlight, rgba(255, 176, 0, 0.5));
+}
+
+cg-board square.selected {
+  background-color: var(--board-highlight, rgba(255, 176, 0, 0.5));
+}
+
+cg-board square.check {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 60, 40, 0.95) 0%,
+    rgba(231, 0, 0, 0.9) 30%,
+    rgba(169, 0, 0, 0) 75%
+  );
+}
+
+cg-board square.move-dest {
+  background: radial-gradient(var(--board-highlight, rgba(255, 176, 0, 0.5)) 19%, rgba(0, 0, 0, 0) 20%);
+  pointer-events: auto;
+}
+
+cg-board square.oc.move-dest {
+  background: radial-gradient(
+    transparent 0%,
+    transparent 80%,
+    var(--board-highlight-soft, rgba(255, 176, 0, 0.3)) 80%
+  );
+}

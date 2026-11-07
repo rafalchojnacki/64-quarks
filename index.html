@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="walnut">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>64 Quarks</title>
+    <!-- Runs before the stylesheets so the saved theme is applied before the first paint.
+         main.js applies and normalizes the theme again once it loads. -->
+    <script>
+      try {
+        // Same names and legacy mapping as applyTheme in main.js.
+        var savedTheme = localStorage.getItem('64-quarks.theme');
+        var legacy = { blue: 'navy', modern: 'navy', classic: 'walnut', brown: 'walnut', wood: 'walnut', gray: 'graphite', mono: 'graphite', light: 'birch' };
+        if (legacy[savedTheme]) savedTheme = legacy[savedTheme];
+        if (['walnut', 'navy', 'graphite', 'birch', 'paper'].indexOf(savedTheme) >= 0) {
+          document.documentElement.dataset.theme = savedTheme;
+        }
+      } catch (e) {
+        /* storage unavailable: keep the default theme */
+      }
+    </script>
+    <!-- Linked here, not imported from main.js, so the styles apply before the first paint. -->
+    <link rel="stylesheet" href="/src/theme.css" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <div class="board-area">
+        <div class="board-and-panel">
+          <aside id="meta-panel" class="meta-panel" aria-label="Game information" hidden>
+            <div class="meta-players">
+              <div id="meta-white" class="meta-line meta-line-player" hidden><span class="meta-side meta-side-white" aria-hidden="true"></span><span id="meta-white-name"></span><span id="meta-white-elo" class="meta-elo"></span></div>
+              <div id="meta-black" class="meta-line meta-line-player" hidden><span class="meta-side meta-side-black" aria-hidden="true"></span><span id="meta-black-name"></span><span id="meta-black-elo" class="meta-elo"></span></div>
+            </div>
+            <div id="meta-result" class="meta-line meta-result" hidden></div>
+            <div id="meta-time" class="meta-line meta-time" hidden></div>
+            <div id="meta-date" class="meta-line meta-date" hidden></div>
+            <div id="meta-event" class="meta-line meta-event" hidden></div>
+            <div id="meta-round" class="meta-line meta-round" hidden></div>
+          </aside>
+          <div class="board-column">
+            <div class="brand-watermark"><span>64 Quarks</span></div>
+            <div class="board-frame">
+              <div class="coords-files" id="coords-files-top"></div>
+              <div class="coords-ranks" id="coords-ranks-left"></div>
+              <div id="board"></div>
+              <div class="coords-ranks" id="coords-ranks-right"></div>
+              <div class="move-indicator turn-black" id="move-indicator" title="Side to move"></div>
+              <div class="coords-files" id="coords-files-bottom"></div>
+            </div>
+          </div>
+          <aside class="side-info-panel">
+            <div class="side-panel-bg"></div>
+            <div class="side-inner-panel">
+              <div class="side-actions" role="group" aria-label="Game actions">
+                <button id="import-btn" type="button" class="side-action" title="New analysis (Alt+G, I to import)" aria-label="New analysis" aria-haspopup="dialog">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 2v4a2 2 0 0 0 2 2h4" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 15h10" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 18 3-3-3-3" /></svg>
+                  <span>New Analysis</span>
+                </button>
+                <div class="settings-widget">
+                  <button id="settings-toggle" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    <span>Settings</span>
+                  </button>
+                  <div id="settings-menu" class="settings-menu" role="menu" hidden>
+                    <div class="settings-header">Settings</div>
+                    <div class="settings-item">
+                      <span class="settings-item-label">
+                        <span class="settings-item-title">Page style</span>
+                        <span class="settings-item-desc">Theme of the page and board</span>
+                      </span>
+                      <div class="settings-theme-buttons" role="group" aria-label="Page style">
+                        <button type="button" class="settings-theme-btn" data-theme-value="graphite" aria-pressed="false">Graphite</button>
+                        <button type="button" class="settings-theme-btn" data-theme-value="walnut" aria-pressed="true">Walnut</button>
+                        <button type="button" class="settings-theme-btn" data-theme-value="navy" aria-pressed="false">Navy</button>
+                        <button type="button" class="settings-theme-btn" data-theme-value="birch" aria-pressed="false">Birch</button>
+                        <button type="button" class="settings-theme-btn" data-theme-value="paper" aria-pressed="false">Paper</button>
+                      </div>
+                    </div>
+                    <div class="settings-item">
+                      <span class="settings-item-label">
+                        <span class="settings-item-title">Piece set</span>
+                        <span class="settings-item-desc">Pieces used on the board</span>
+                      </span>
+                      <div class="settings-theme-buttons" role="group" aria-label="Piece set">
+                        <button type="button" class="settings-theme-btn settings-piece-btn" data-piece-value="staunty" aria-pressed="true">Staunty</button>
+                        <button type="button" class="settings-theme-btn settings-piece-btn" data-piece-value="maestro" aria-pressed="false">Maestro</button>
+                      </div>
+                    </div>
+                    <label class="settings-item" role="menuitemcheckbox" aria-checked="true">
+                      <span class="settings-item-label">
+                        <span class="settings-item-title">Legal move dots</span>
+                        <span class="settings-item-desc">Show destinations for the selected piece</span>
+                      </span>
+                      <input id="setting-show-dests" type="checkbox" checked />
+                      <span class="settings-switch" aria-hidden="true"></span>
+                    </label>
+                    <label class="settings-item" role="menuitemcheckbox" aria-checked="true">
+                      <span class="settings-item-label">
+                        <span class="settings-item-title">Last move highlight</span>
+                        <span class="settings-item-desc">Highlight the squares of the last move</span>
+                      </span>
+                      <input id="setting-show-last-move" type="checkbox" checked />
+                      <span class="settings-switch" aria-hidden="true"></span>
+                    </label>
+
+                    <div class="settings-legal">
+                      <p>64 Quarks is free software under the GNU AGPL v3 or later. <a href="https://github.com/rafalchojnacki/64-quarks" target="_blank" rel="noopener noreferrer">Source code</a> · <a href="https://github.com/rafalchojnacki/64-quarks/blob/master/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Third-party notices</a> · <a href="/licenses/AGPL-3.0.txt" target="_blank" rel="noopener noreferrer">License</a></p>
+                      <p>Opening data: Lichess.org (used with your token). Maia3 model: CSSLab, University of Toronto. Stockfish: GPL-3.0. Piece sets Staunty and Maestro by sadsnake1: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a> (non-commercial).</p>
+                      <p>Not affiliated with Lichess or CSSLab. Do not use during games on Lichess.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="analysis-section" id="eval-section">
+                <div class="eval-header">
+                  <span class="eval-title">Evaluation</span>
+                  <div class="eval-controls">
+                    <label class="eval-toggle" title="Show evaluation (E)">
+                      <input id="eval-toggle" type="checkbox" role="switch" aria-label="Show evaluation" />
+                      <span class="eval-switch" aria-hidden="true"></span>
+                    </label>
+                    <button id="eval-settings-btn" type="button" class="eval-icon-btn" title="Evaluation settings" aria-label="Evaluation settings" aria-expanded="false" aria-controls="eval-settings">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div id="eval-settings" class="settings-menu section-popover" hidden>
+                  <div class="settings-header">Evaluation</div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Lines</span>
+                      <span class="settings-item-desc">The number of lines shown</span>
+                    </span>
+                    <div id="eval-lines" class="eval-seg" role="group" aria-label="Number of lines"></div>
+                  </div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Engine analysis depth</span>
+                      <span class="settings-item-desc">How many postions are analyzed by the engine</span>
+                    </span>
+                    <div id="eval-quality" class="eval-seg" role="group" aria-label="Engine analysis depth"></div>
+                  </div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Peer rating</span>
+                      <span class="settings-item-desc">Reference raiting for white-win/draw/black-win likelihood.<br>Helps to asses the game outcome when played by humans.</span>
+                    </span>
+                    <div class="eval-dropdown settings-dropdown">
+                      <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
+                        <span id="eval-rating-label"></span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg>
+                      </button>
+                      <ul id="eval-rating-list" class="eval-dd-list" role="listbox" aria-label="Peer rating" hidden></ul>
+                    </div>
+                  </div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Master blitz raitings</span>
+		      <span class="settings-item-desc">Reference raiting for move play likelihood. Helps assess <br />for best engine moves how difficult a move is to find.</span>
+                    </span>
+                    <div id="eval-master" class="eval-seg" role="group" aria-label="Master blitz ratings"></div>
+                  </div>
+                  <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Move preview</span>
+                      <span class="settings-item-desc">Show a small board when hovering a continuation move</span>
+                    </span>
+                    <input id="eval-preview" type="checkbox" />
+                    <span class="settings-switch" aria-hidden="true"></span>
+                  </label>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Lichess token</span>
+                      <span class="settings-item-desc">Needed for database data (peer and masters). Without it, only Maia3 is used. <br /><a href="https://lichess.org/account/oauth/token" target="_blank" rel="noopener noreferrer">Get your token</a> (you can leave all checkboxes unchecked)</span>
+                    </span>
+                    <div class="eval-token-control">
+                      <div class="eval-token-row">
+                        <input id="eval-token" class="eval-token-input" type="password" autocomplete="off" spellcheck="false" aria-label="Lichess API token" />
+                        <button id="eval-token-check" type="button" class="eval-token-check">Apply</button>
+                      </div>
+                      <span id="eval-token-status" class="eval-token-status" role="status" aria-live="polite"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="analysis-panel-body">
+                  <div id="eval-body" class="eval-body"></div>
+                </div>
+              </div>
+              <div id="sidebar-split" class="sidebar-split" role="separator" aria-orientation="horizontal" aria-label="Resize Evaluation and Moves" aria-controls="eval-section" tabindex="0" title="Drag to resize (arrow keys work too)"></div>
+              <div class="movies-section">
+                <div class="eval-header">
+                  <span class="eval-title">Moves</span>
+                  <div class="eval-controls">
+                    <button id="moves-settings-btn" type="button" class="eval-icon-btn" title="Move list settings" aria-label="Move list settings" aria-expanded="false" aria-controls="moves-settings">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div id="moves-settings" class="settings-menu section-popover" hidden>
+                  <div class="settings-header">Move list</div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Layout</span>
+                      <span class="settings-item-desc">How main line moves and vartiations are shown</span>
+                    </span>
+                    <div id="moves-layout" class="eval-seg" role="group" aria-label="Move layout"></div>
+                  </div>
+                </div>
+                <div class="movies-panel-body">
+                  <div id="move-list" class="move-list" aria-label="Move list"></div>
+                </div>
+                <div id="move-selector" class="move-selector" role="group" aria-label="Choose next move" hidden></div>
+                <div class="movies-panel-footer">
+                  <div class="nav-buttons" role="group" aria-label="Position navigation">
+                    <button id="nav-first" type="button" title="Move to the first position" aria-label="Move to the first position">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M17 6l-6 6 6 6M8 6v12" />
+                      </svg>
+                    </button>
+                    <button id="nav-prev" type="button" title="Previous position" aria-label="Go to previous position">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6" />
+                      </svg>
+                    </button>
+                    <button id="nav-next" type="button" title="Next position" aria-label="Go to next position">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                    <button id="nav-last" type="button" title="Move to the last position" aria-label="Move to the last position">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 6l6 6-6 6M16 6v12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="nav-buttons panel-action-buttons" role="group" aria-label="Position actions">
+                    <button id="copy-pgn-btn" type="button" title="Copy PGN to clipboard" aria-label="Copy PGN to clipboard">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    </button>
+                    <button id="download-pgn-btn" type="button" title="Download PGN file" aria-label="Download PGN file">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-5-5m5 5l5-5M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+    <div id="move-context-menu" class="move-context-menu" role="menu" hidden></div>
+    <div id="import-dialog" class="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-dialog-title" hidden>
+      <div class="import-dialog-panel">
+        <h2 id="import-dialog-title">New Analysis</h2>
+        <div class="new-analysis-tabs" role="tablist" aria-label="New analysis source">
+          <button id="tab-start" type="button" class="new-analysis-tab" role="tab" aria-selected="true" aria-controls="tabpanel-start" data-tab="start">Start position</button>
+          <button id="tab-import" type="button" class="new-analysis-tab" role="tab" aria-selected="false" aria-controls="tabpanel-import" data-tab="import">Import FEN or PGN</button>
+        </div>
+        <div id="tabpanel-start" class="new-analysis-tabpanel" role="tabpanel" aria-labelledby="tab-start">
+          <p>Clear the board and start from the initial position.</p>
+          <div class="import-dialog-actions">
+            <button id="start-cancel" type="button">Cancel</button>
+            <button id="start-confirm" type="button">Start</button>
+          </div>
+        </div>
+        <div id="tabpanel-import" class="new-analysis-tabpanel" role="tabpanel" aria-labelledby="tab-import" hidden>
+          <textarea id="import-input" rows="7" spellcheck="false" autocomplete="off" placeholder="Paste a FEN or PGN..."></textarea>
+          <p id="import-error" class="import-error" hidden>Paste a valid FEN or PGN.</p>
+          <div class="import-dialog-actions">
+            <button id="import-cancel" type="button">Cancel</button>
+            <button id="import-confirm" type="button">Import</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="delete-dialog" class="delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" hidden>
+      <div class="delete-dialog-panel">
+        <h2 id="delete-dialog-title">Delete moves?</h2>
+        <p id="delete-dialog-message"></p>
+        <div class="delete-dialog-actions">
+          <button id="delete-cancel" type="button">Cancel</button>
+          <button id="delete-confirm" type="button">Delete</button>
+        </div>
+      </div>
+    </div>
+    <div id="promotion" class="promotion" hidden>
+      <div class="promotion-menu" id="promotion-menu" role="dialog" aria-label="Choose promotion piece"></div>
+    </div>
+    <div class="timer-widget">
+      <button id="timer-toggle" type="button" title="Show timer" aria-label="Show timer" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2M9 2h6M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16Z" />
+        </svg>
+      </button>
+      <div id="timer-panel" class="timer-panel" hidden>
+        <span id="timer-display" class="timer-display">00:00</span>
+        <button id="timer-restart" type="button" title="Restart (Alt+T, R)" aria-label="Restart">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 1 0 3-6.7" />
+            <polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="3 4 3 9 8 9" />
+          </svg>
+        </button>
+        <button id="timer-startpause" type="button" title="Start (Alt+T, S) / Pause (Alt+T, P)" aria-label="Start / pause">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <polygon fill="currentColor" points="5 3 19 12 5 21 5 3" />
+          </svg>
+        </button>
+        <button id="timer-reset" type="button" title="Clear (Alt+T, C)" aria-label="Clear">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2" ry="2" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
