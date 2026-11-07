@@ -1767,7 +1767,7 @@ themeButtons.forEach((btn) => {
 
 const pieceButtons = document.querySelectorAll('.settings-piece-btn');
 const PIECE_ABBREVS = ['wP', 'wN', 'wB', 'wR', 'wQ', 'wK', 'bP', 'bN', 'bB', 'bR', 'bQ', 'bK'];
-const VALID_PIECES = ['staunty', 'maestro'];
+const VALID_PIECES = ['staunty', 'maestro', 'cardinal'];
 
 function applyPieces(set) {
   if (!VALID_PIECES.includes(set)) set = 'staunty';
