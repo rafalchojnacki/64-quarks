@@ -528,7 +528,7 @@ export class EvalPanel {
     // Both engines are initialized before the search starts: Stockfish is started,
     // and the Maia3 model is downloaded and loaded (its progress is shown). Only then
     // does the search begin, so the first evaluation does not wait for Maia3 later.
-    this.view = { state: 'loading', fen, lines: [], maia: { phase: 'download', loaded: 0, total: 0 } };
+    this.view = { state: 'loading', fen, lines: [], maia: null };
     this.render();
     const maiaLoad = loadMaia((status) => this.onMaiaStatus(runId, status)).then(
       () => null,
