@@ -44,6 +44,7 @@ const POSITION_GLYPH_IDS = POSITION_GLYPHS.map((glyph) => glyph.id);
 
 const importBtn = document.getElementById('import-btn');
 const clearMovesBtn = document.getElementById('clear-moves-btn');
+const clearAnnotationsBtn = document.getElementById('clear-annotations-btn');
 const importDialog = document.getElementById('import-dialog');
 const importInput = document.getElementById('import-input');
 const importError = document.getElementById('import-error');
@@ -393,6 +394,7 @@ function refresh() {
   navNext.disabled = !entry.children.length;
   navLast.disabled = !mainChildOf(entry);
   clearMovesBtn.disabled = moveTree.children.length === 0;
+  clearAnnotationsBtn.disabled = !hasAnnotations();
   renderMoveList();
   renderMoveSelector();
   ensureActiveMoveVisible();
@@ -999,6 +1001,32 @@ function deleteMove(entry) {
   });
 }
 
+function hasAnnotations() {
+  let found = false;
+  const walk = (node) => {
+    if (found) return;
+    if (node.moveGlyph !== null || node.positionGlyph !== null || node.engineEval !== null) {
+      found = true;
+      return;
+    }
+    node.children.forEach(walk);
+  };
+  walk(moveTree);
+  return found;
+}
+
+// Removes every move glyph, position glyph, and engine-eval marker from the game.
+function clearAnnotations() {
+  const walk = (node) => {
+    node.moveGlyph = null;
+    node.positionGlyph = null;
+    node.engineEval = null;
+    node.children.forEach(walk);
+  };
+  walk(moveTree);
+  refresh();
+}
+
 // Clears the board and all moves, returning to the starting position.
 function resetGame() {
   currentFen = START_FEN;
@@ -1266,6 +1294,16 @@ clearMovesBtn.addEventListener('click', () => {
     onConfirm: resetGame,
   });
 });
+
+clearAnnotationsBtn.addEventListener('click', () => {
+  openConfirmDialog({
+    title: 'Clear all annotations?',
+    message: 'This removes all move glyphs, position glyphs, and engine eval markers. This cannot be undone.',
+    label: 'Clear',
+    onConfirm: clearAnnotations,
+  });
+});
+
 deleteDialog.addEventListener('click', (event) => {
   if (event.target === deleteDialog) closeDeleteDialog();
 });
@@ -1529,6 +1567,7 @@ function buildPgn() {
   return assemblePgn(lines, movetext, termination);
 }
 
+const copyFenBtn = document.getElementById('copy-fen-btn');
 const copyPgnBtn = document.getElementById('copy-pgn-btn');
 const downloadPgnBtn = document.getElementById('download-pgn-btn');
 
@@ -1544,6 +1583,17 @@ function copyTextFallback(text) {
   area.remove();
   return ok;
 }
+
+copyFenBtn.addEventListener('click', async () => {
+  const fen = currentFen;
+  try {
+    await navigator.clipboard.writeText(fen);
+  } catch {
+    if (!copyTextFallback(fen)) {
+      window.alert('Could not copy the position to the clipboard.');
+    }
+  }
+});
 
 copyPgnBtn.addEventListener('click', async () => {
   const pgn = buildPgn();

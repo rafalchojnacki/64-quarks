@@ -457,6 +457,15 @@ main {
   margin-left: auto;
 }
 
+.panel-action-buttons #clear-annotations-btn {
+  margin-right: 16px;
+}
+
+#clear-moves-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* Import and Settings, right-aligned above the evaluation panel. */
 .side-actions {
   position: absolute;
@@ -998,7 +1007,8 @@ main {
 }
 
 #import-btn svg,
-#clear-moves-btn svg,
+#clear-annotations-btn svg,
+#copy-fen-btn svg,
 #copy-pgn-btn svg,
 #download-pgn-btn svg {
   width: 18px;
