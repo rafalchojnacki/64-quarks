@@ -125,7 +125,10 @@ export function validateLichessToken(token) {
 }
 
 // Lichess games for the position, limited to the rating group of `rating` and
-// to games of the same speed (bullet, blitz, rapid or classical). Needs a token.
+// to games of the same speed (bullet, blitz, rapid or classical). The speed is
+// derived from the game's PGN TimeControl (see gameSpeed/speedForTimeControl)
+// and defaults to blitz when it is missing or not a clock time control.
+// Needs a token.
 export function fetchPeerDatabase({ fen, rating, speed, token }) {
   const params = new URLSearchParams({
     variant: 'standard',
@@ -136,7 +139,9 @@ export function fetchPeerDatabase({ fen, rating, speed, token }) {
   return getExplorer(`${LICHESS_URL}?${params}`, token);
 }
 
-// Masters database (all recorded classical games between strong players). Needs a token.
+// Masters database (all recorded classical games between strong players). It is
+// not filtered by speed or rating: every game in it is classical, so the time
+// control is effectively fixed to classical. Needs a token.
 export function fetchMastersDatabase({ fen, token }) {
   return getExplorer(`${MASTERS_URL}?${new URLSearchParams({ fen })}`, token);
 }

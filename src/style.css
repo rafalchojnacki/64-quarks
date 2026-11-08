@@ -1258,7 +1258,9 @@ main {
   margin-top: 1px;
   font-size: 12px;
   color: var(--text-dim);
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 320px;
+  overflow-wrap: break-word;
 }
 
 .settings-item input[type="checkbox"] {

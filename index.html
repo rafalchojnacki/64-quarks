@@ -150,7 +150,7 @@
                   <div class="settings-item">
                     <span class="settings-item-label">
                       <span class="settings-item-title">Peer rating</span>
-                      <span class="settings-item-desc">Reference raiting for white-win/draw/black-win likelihood.<br>Helps to asses the game outcome when played by humans.</span>
+                      <span class="settings-item-desc">Reference raiting for white-win/draw/black-win likelihood. Helps to asses the game outcome when played by humans. Peer database data uses the game's time control; defaults to blitz if unknown. Estimates use Maia3 model, i.e. blitz rating regardless of a game time control.</span>
                     </span>
                     <div class="eval-dropdown settings-dropdown">
                       <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
@@ -162,8 +162,8 @@
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
-                      <span class="settings-item-title">Master blitz raitings</span>
-		      <span class="settings-item-desc">Reference raiting for move play likelihood. Helps assess <br />for best engine moves how difficult a move is to find.</span>
+                      <span class="settings-item-title">Master raitings</span>
+		      <span class="settings-item-desc">Reference raiting for move play likelihood. Helps assess for best engine moves how difficult a move is to find. The Masters database holds classical games only. Estimates use Maia3 model, i.e. selected blitz-scale rating range regardless of a game time control.</span>
                     </span>
                     <div id="eval-master" class="eval-seg" role="group" aria-label="Master blitz ratings"></div>
                   </div>

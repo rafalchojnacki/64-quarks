@@ -20,7 +20,7 @@ export const MASTER_RANGES = [
 ];
 
 // token is an optional Lichess API token. Empty means anonymous access.
-export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, master: '2600', preview: false, token: '' };
+export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, master: '2200+', preview: false, token: '' };
 
 const STORAGE_KEY = '64-quarks.eval';
 

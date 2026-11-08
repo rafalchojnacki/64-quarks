@@ -54,8 +54,10 @@ function average(values) {
 //   fen:       position being analysed (side to move is the mover)
 //   moves:     [{ uci, childFen }] one entry per engine line, childFen is the
 //              position after that move
-//   rating:    rating used for the peer win/draw/loss
-//   ratings:   Maia3 ratings averaged for the probabilities (see MASTER_RANGES)
+//   rating:    rating used for the peer win/draw/loss (blitz-scale; Maia does
+//              not use the game's time control)
+//   ratings:   Maia3 ratings averaged for the probabilities (see MASTER_RANGES);
+//              blitz-scale, independent of the game's time control
 //   probabilities, wdl: which values to compute. Skipping one saves inference
 //              when that column is taken from a database instead.
 // Returns { moves, topProbability }: moves has one { probability, wdl } per
