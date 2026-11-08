@@ -60,6 +60,7 @@ export function formatScore(score, sideToMove) {
 // 1 to 5 circles for a probability in [0, 1].
 export function circlesForProbability(p) {
   if (!Number.isFinite(p)) return 1;
+  if (p < 0.01) return 0;
   return Math.min(5, Math.max(1, Math.ceil(p * 5)));
 }
 

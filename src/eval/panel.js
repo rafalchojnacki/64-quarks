@@ -898,15 +898,19 @@ export class EvalPanel {
     const wrap = el('div', 'eval-circles-wrap');
     const circles = el('span', 'eval-circles');
     wrap.append(circles, sourceSlot(entry?.source, 'Masters', entry?.games, hasToken));
-    // A zero probability means the move has no games in the database.
-    if (!entry || !entry.probability || !column?.topProbability) {
+    // A zero probability means the move has no games in the database (for DB
+    // entries) or Maia estimated it as never played. Null/undefined means
+    // no value exists at all, which is shown as a dash instead of circles.
+    if (!entry || entry.probability == null || column?.topProbability == null) {
       circles.append(el('span', 'eval-empty-inline', '—'));
       return wrap;
     }
-    const count = Math.min(DOTS, Math.max(1, Math.round((entry.probability / column.topProbability) * DOTS)));
+    const count = entry.probability < 0.01 || !column.topProbability
+      ? 0
+      : Math.min(DOTS, Math.max(1, Math.round((entry.probability / column.topProbability) * DOTS)));
     circles.setAttribute('role', 'img');
     circles.setAttribute('aria-label', `Probability ${count} of ${DOTS}`);
-    attachTip(circles, [formatPercent(entry.probability)]);
+    attachTip(circles, [entry.probability < 0.01 ? '< 1%' : formatPercent(entry.probability)]);
     for (let i = 0; i < DOTS; i += 1) {
       circles.append(el('span', i < count ? 'eval-dot eval-dot-on' : 'eval-dot'));
     }
