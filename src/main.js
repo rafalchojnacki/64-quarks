@@ -43,9 +43,7 @@ const MOVE_GLYPH_IDS = MOVE_GLYPHS.map((glyph) => glyph.id);
 const POSITION_GLYPH_IDS = POSITION_GLYPHS.map((glyph) => glyph.id);
 
 const importBtn = document.getElementById('import-btn');
-const startConfirm = document.getElementById('start-confirm');
-const startCancel = document.getElementById('start-cancel');
-const newAnalysisTabs = document.querySelectorAll('.new-analysis-tab');
+const clearMovesBtn = document.getElementById('clear-moves-btn');
 const importDialog = document.getElementById('import-dialog');
 const importInput = document.getElementById('import-input');
 const importError = document.getElementById('import-error');
@@ -394,6 +392,7 @@ function refresh() {
   navPrev.disabled = entry.id === moveTree.id;
   navNext.disabled = !entry.children.length;
   navLast.disabled = !mainChildOf(entry);
+  clearMovesBtn.disabled = moveTree.children.length === 0;
   renderMoveList();
   renderMoveSelector();
   ensureActiveMoveVisible();
@@ -1209,50 +1208,12 @@ function closeImportDialog() {
   importBtn.setAttribute('aria-expanded', 'false');
 }
 
-// Shows one tab of the New Analysis panel and hides the others.
-function selectNewAnalysisTab(name) {
-  for (const tab of newAnalysisTabs) {
-    const active = tab.dataset.tab === name;
-    tab.setAttribute('aria-selected', String(active));
-    document.getElementById(`tabpanel-${tab.dataset.tab}`).hidden = !active;
-  }
-  if (name === 'import') importInput.focus();
-  else startConfirm.focus();
-}
-
-// The tab last picked by the user in the New Analysis panel. Only tab clicks
-// save it; the Alt+G, I shortcut opens Import without changing the saved choice.
-const NEW_ANALYSIS_TAB_KEY = '64-quarks.newAnalysisTab';
-const NEW_ANALYSIS_TABS = ['start', 'import'];
-
-function loadNewAnalysisTab() {
-  let saved = null;
-  try {
-    saved = localStorage.getItem(NEW_ANALYSIS_TAB_KEY);
-  } catch {
-    /* ignore storage errors */
-  }
-  return NEW_ANALYSIS_TABS.includes(saved) ? saved : 'start';
-}
-
-function saveNewAnalysisTab(tab) {
-  try {
-    localStorage.setItem(NEW_ANALYSIS_TAB_KEY, tab);
-  } catch {
-    /* ignore storage errors */
-  }
-}
-
-function openNewAnalysis(tab = loadNewAnalysisTab()) {
+function openImportDialog() {
   importInput.value = '';
   importError.hidden = true;
   importDialog.hidden = false;
   importBtn.setAttribute('aria-expanded', 'true');
-  selectNewAnalysisTab(tab);
-}
-
-function openImportDialog() {
-  openNewAnalysis('import');
+  importInput.focus();
 }
 
 function importText() {
@@ -1292,33 +1253,19 @@ deleteConfirm.addEventListener('click', () => {
   if (action) action();
 });
 
-// New Analysis panel. Future sources (online games, databases, studies) are added
-// as more tabs.
-function startNewAnalysis() {
-  // Starting over discards the current game, so confirm when there is something to lose.
-  const hasWork = moveTree.children.length > 0 || moveTree.fen !== START_FEN;
-  closeImportDialog();
-  if (!hasWork) {
-    resetGame();
-    return;
-  }
+importBtn.addEventListener('click', openImportDialog);
+
+// Clearing discards every move, so it always asks first. The button is disabled
+// when there are no moves, so the confirm dialog is only reachable with moves present.
+clearMovesBtn.addEventListener('click', () => {
+  if (moveTree.children.length === 0) return;
   openConfirmDialog({
-    title: 'Start new analysis?',
-    message: 'This clears the board and removes all moves.',
-    label: 'Start',
+    title: 'Clear all moves?',
+    message: 'This clears the board and deletes all moves. This cannot be undone.',
+    label: 'Clear',
     onConfirm: resetGame,
   });
-}
-
-importBtn.addEventListener('click', () => openNewAnalysis(loadNewAnalysisTab()));
-for (const tab of newAnalysisTabs) {
-  tab.addEventListener('click', () => {
-    saveNewAnalysisTab(tab.dataset.tab);
-    selectNewAnalysisTab(tab.dataset.tab);
-  });
-}
-startConfirm.addEventListener('click', startNewAnalysis);
-startCancel.addEventListener('click', closeImportDialog);
+});
 deleteDialog.addEventListener('click', (event) => {
   if (event.target === deleteDialog) closeDeleteDialog();
 });

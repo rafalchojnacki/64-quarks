@@ -53,9 +53,9 @@
             <div class="side-panel-bg"></div>
             <div class="side-inner-panel">
               <div class="side-actions" role="group" aria-label="Game actions">
-                <button id="import-btn" type="button" class="side-action" title="New analysis (Alt+G, I to import)" aria-label="New analysis" aria-haspopup="dialog">
+                <button id="import-btn" type="button" class="side-action" title="Import FEN or PGN (Alt+G, I)" aria-label="Import" aria-haspopup="dialog">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 2v4a2 2 0 0 0 2 2h4" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 15h10" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 18 3-3-3-3" /></svg>
-                  <span>New Analysis</span>
+                  <span>Import</span>
                 </button>
                 <div class="settings-widget">
                   <button id="settings-toggle" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-pressed="false">
@@ -63,7 +63,6 @@
                       <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
                       <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                     </svg>
-                    <span>Settings</span>
                   </button>
                   <div id="settings-menu" class="settings-menu" role="menu" hidden>
                     <div class="settings-header">Settings</div>
@@ -245,6 +244,9 @@
                     </button>
                   </div>
                   <div class="nav-buttons panel-action-buttons" role="group" aria-label="Position actions">
+                    <button id="clear-moves-btn" type="button" title="Clear all moves" aria-label="Clear all moves">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m5.082 11.09 8.828 8.828" /></svg>
+                    </button>
                     <button id="copy-pgn-btn" type="button" title="Copy PGN to clipboard" aria-label="Copy PGN to clipboard">
                       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                     </button>
@@ -262,25 +264,12 @@
     <div id="move-context-menu" class="move-context-menu" role="menu" hidden></div>
     <div id="import-dialog" class="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-dialog-title" hidden>
       <div class="import-dialog-panel">
-        <h2 id="import-dialog-title">New Analysis</h2>
-        <div class="new-analysis-tabs" role="tablist" aria-label="New analysis source">
-          <button id="tab-start" type="button" class="new-analysis-tab" role="tab" aria-selected="true" aria-controls="tabpanel-start" data-tab="start">Start position</button>
-          <button id="tab-import" type="button" class="new-analysis-tab" role="tab" aria-selected="false" aria-controls="tabpanel-import" data-tab="import">Import FEN or PGN</button>
-        </div>
-        <div id="tabpanel-start" class="new-analysis-tabpanel" role="tabpanel" aria-labelledby="tab-start">
-          <p>Clear the board and start from the initial position.</p>
-          <div class="import-dialog-actions">
-            <button id="start-cancel" type="button">Cancel</button>
-            <button id="start-confirm" type="button">Start</button>
-          </div>
-        </div>
-        <div id="tabpanel-import" class="new-analysis-tabpanel" role="tabpanel" aria-labelledby="tab-import" hidden>
-          <textarea id="import-input" rows="7" spellcheck="false" autocomplete="off" placeholder="Paste a FEN or PGN..."></textarea>
-          <p id="import-error" class="import-error" hidden>Paste a valid FEN or PGN.</p>
-          <div class="import-dialog-actions">
-            <button id="import-cancel" type="button">Cancel</button>
-            <button id="import-confirm" type="button">Import</button>
-          </div>
+        <h2 id="import-dialog-title">Import</h2>
+        <textarea id="import-input" rows="7" spellcheck="false" autocomplete="off" placeholder="Paste a FEN or PGN..."></textarea>
+        <p id="import-error" class="import-error" hidden>Paste a valid FEN or PGN.</p>
+        <div class="import-dialog-actions">
+          <button id="import-cancel" type="button">Cancel</button>
+          <button id="import-confirm" type="button">Import</button>
         </div>
       </div>
     </div>

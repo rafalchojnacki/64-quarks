@@ -457,7 +457,7 @@ main {
   margin-left: auto;
 }
 
-/* New Analysis and Settings, right-aligned above the evaluation panel. */
+/* Import and Settings, right-aligned above the evaluation panel. */
 .side-actions {
   position: absolute;
   left: var(--sidebar-inset);
@@ -469,7 +469,7 @@ main {
   gap: 6px;
 }
 
-/* Pushes New Analysis and Settings to the right edge of the row. */
+/* Pushes Import and Settings to the right edge of the row. */
 .side-actions #import-btn {
   margin-left: auto;
 }
@@ -998,6 +998,7 @@ main {
 }
 
 #import-btn svg,
+#clear-moves-btn svg,
 #copy-pgn-btn svg,
 #download-pgn-btn svg {
   width: 18px;
@@ -1207,49 +1208,6 @@ main {
 
 .settings-menu[hidden] {
   display: none;
-}
-
-/* New Analysis panel tabs. */
-.new-analysis-tabs {
-  display: flex;
-  gap: 4px;
-  margin-top: 12px;
-  padding: 3px;
-  background: var(--panel-bg, var(--glass-bg));
-  border: 1px solid var(--glass-border);
-  border-radius: 9px;
-}
-
-.new-analysis-tab {
-  flex: 1;
-  padding: 6px 10px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-.new-analysis-tab:hover {
-  color: var(--text-main);
-}
-
-.new-analysis-tab[aria-selected="true"] {
-  color: var(--text-main);
-  background: var(--hover-bg);
-}
-
-.new-analysis-tab:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--focus-ring);
-}
-
-.new-analysis-tabpanel > p {
-  margin-top: 14px;
-  color: var(--text-muted);
-  font-size: 14px;
 }
 
 .settings-header {
