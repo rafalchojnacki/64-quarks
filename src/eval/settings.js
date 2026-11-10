@@ -19,8 +19,15 @@ export const MASTER_RANGES = [
   { value: '2600', label: '2600', ratings: [2600] },
 ];
 
+// Which move-probability lines are shown in the squashed Peers/Masters column.
+export const PROBABILITY_VIEWS = [
+  { value: 'masters', label: 'Masters' },
+  { value: 'peers', label: 'Peers' },
+  { value: 'both', label: 'Both' },
+];
+
 // token is an optional Lichess API token. Empty means anonymous access.
-export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, master: '2200+', preview: false, token: '' };
+export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, master: '2200+', probView: 'masters', preview: false, token: '' };
 
 const STORAGE_KEY = '64-quarks.eval';
 
@@ -47,11 +54,13 @@ export function normalizeSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   const lines = Number(source.lines);
   const rating = Number(source.rating);
+  const probView = source.probView;
   return {
     lines: LINE_COUNTS.includes(lines) ? lines : DEFAULT_SETTINGS.lines,
     quality: Object.hasOwn(QUALITY_LEVELS, source.quality) ? source.quality : DEFAULT_SETTINGS.quality,
     rating: RATINGS.includes(rating) ? rating : DEFAULT_SETTINGS.rating,
     master: MASTER_RANGES.some((range) => range.value === source.master) ? source.master : DEFAULT_SETTINGS.master,
+    probView: PROBABILITY_VIEWS.some((view) => view.value === probView) ? probView : DEFAULT_SETTINGS.probView,
     preview: source.preview === true,
     token: typeof source.token === 'string' ? source.token.trim() : DEFAULT_SETTINGS.token,
   };

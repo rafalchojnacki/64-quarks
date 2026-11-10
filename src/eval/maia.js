@@ -54,17 +54,19 @@ function average(values) {
 //   fen:       position being analysed (side to move is the mover)
 //   moves:     [{ uci, childFen }] one entry per engine line, childFen is the
 //              position after that move
-//   rating:    rating used for the peer win/draw/loss (blitz-scale; Maia does
-//              not use the game's time control)
-//   ratings:   Maia3 ratings averaged for the probabilities (see MASTER_RANGES);
-//              blitz-scale, independent of the game's time control
-//   probabilities, wdl: which values to compute. Skipping one saves inference
-//              when that column is taken from a database instead.
-// Returns { moves, topProbability }: moves has one { probability, wdl } per
-// input move (probability averaged over ratings, wdl from the mover's
-// point of view); topProbability is the highest averaged probability of any
-// legal move in the position. Values that were not requested are null.
-export async function scoreMoves({ fen, moves, rating, ratings, probabilities = true, wdl = true }) {
+//   rating:    rating used for the peer win/draw/loss and the peer move probability
+//              (blitz-scale; Maia does not use the game's time control)
+//   ratings:   Maia3 ratings averaged for the Masters move probability (see
+//              MASTER_RANGES); blitz-scale, independent of the game's time control
+//   probabilities: compute the Masters move probability (averaged over `ratings`).
+//   peerProbability: compute the Peer move probability (for `rating`).
+//   wdl:       compute the peer win/draw/loss from the child positions.
+// Skipping a value saves inference when that column is taken from a database.
+// Returns { moves, topProbability, peerTopProbability }: moves has one
+// { probability, peerProbability, wdl } per input move; topProbability is the
+// highest averaged Masters probability, peerTopProbability the highest Peer
+// probability. Values that were not requested are null.
+export async function scoreMoves({ fen, moves, rating, ratings, probabilities = true, peerProbability = false, wdl = true }) {
   const instance = await loadMaia();
 
   const positions = probabilities
@@ -72,6 +74,10 @@ export async function scoreMoves({ fen, moves, rating, ratings, probabilities = 
         ratings.map((selfElo) => ({ fen, selfElo })),
         { onError: 'collect' },
       )
+    : [];
+
+  const peerPositions = peerProbability
+    ? await instance.predictBatch([{ fen, selfElo: rating }], { onError: 'collect' })
     : [];
 
   const childInputs = [];
@@ -86,6 +92,7 @@ export async function scoreMoves({ fen, moves, rating, ratings, probabilities = 
     : [];
 
   const valid = positions.filter((position) => !(position instanceof Error));
+  const validPeer = peerPositions.filter((position) => !(position instanceof Error));
 
   // Highest averaged probability over every legal move in the position.
   // Circles are scaled against it, so the most probable move is always full.
@@ -97,10 +104,20 @@ export async function scoreMoves({ fen, moves, rating, ratings, probabilities = 
     ? Math.max(0, ...[...sums.values()].map((sum) => sum / valid.length))
     : null;
 
+  const peerSums = new Map();
+  for (const position of validPeer) {
+    for (const [uci, p] of position.moves) peerSums.set(uci, (peerSums.get(uci) ?? 0) + p);
+  }
+  const peerTopProbability = validPeer.length
+    ? Math.max(0, ...[...peerSums.values()].map((sum) => sum / validPeer.length))
+    : null;
+
   const results = moves.map((move) => {
     const probabilities = valid.map((position) => position.moves.get(move.uci) ?? 0);
+    const peerProbabilities = validPeer.map((position) => position.moves.get(move.uci) ?? 0);
     return {
       probability: probabilities.length ? average(probabilities) : null,
+      peerProbability: peerProbabilities.length ? average(peerProbabilities) : null,
       wdl: null,
     };
   });
@@ -111,7 +128,7 @@ export async function scoreMoves({ fen, moves, rating, ratings, probabilities = 
     results[childIndex[i]].wdl = swapWdl(child.wdl);
   });
 
-  return { moves: results, topProbability };
+  return { moves: results, topProbability, peerTopProbability };
 }
 
 function isGameOver(fen) {

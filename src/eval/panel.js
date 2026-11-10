@@ -25,6 +25,7 @@ import {
 import {
   LINE_COUNTS,
   MASTER_RANGES,
+  PROBABILITY_VIEWS,
   QUALITY_LEVELS,
   RATINGS,
   loadSettings,
@@ -72,7 +73,7 @@ function columnHeader() {
   const [, score, wdl, circles] = header.children;
   score.append(label('Score'));
   wdl.append(label('Peer results'));
-  circles.append(label('Masters'));
+  circles.append(label('Peers / Masters'));
   return header;
 }
 
@@ -139,6 +140,18 @@ function columnValues({ fen, lines, peer, masters, maia }) {
     return estimate?.wdl ? { source: 'maia', wdl: estimate.wdl } : null;
   });
 
+  const peerShare = (uci) => gamesOf(peer.moves.get(uci)) / peer.total;
+  const peerProbMoves = lines.map((line, index) => {
+    const uci = line.pv[0];
+    if (peer && hasPeer(uci)) {
+      return { source: 'lichess', probability: peerShare(uci), games: gamesOf(peer.moves.get(uci)) };
+    }
+    const estimate = maia?.moves[index];
+    return estimate?.peerProbability !== null && estimate?.peerProbability !== undefined
+      ? { source: 'maia', probability: estimate.peerProbability }
+      : null;
+  });
+
   const mastersShare = (uci) => gamesOf(masters.moves.get(uci)) / masters.total;
   const mastersMoves = lines.map((line, index) => {
     const uci = line.pv[0];
@@ -154,14 +167,21 @@ function columnValues({ fen, lines, peer, masters, maia }) {
   // Circles are scaled against the most probable move. Database shares and Maia
   // probabilities are both shares of the position, so the top is the larger of
   // the two lists (only lists that exist are considered).
-  const tops = [
+  const peerProbTops = [
+    peer ? Math.max(0, ...[...peer.moves.keys()].map(peerShare)) : null,
+    maia?.peerTopProbability ?? null,
+  ].filter((value) => value !== null);
+  const peerProbTop = peerProbTops.length ? Math.max(...peerProbTops) : null;
+
+  const mastersTops = [
     masters ? Math.max(0, ...[...masters.moves.keys()].map(mastersShare)) : null,
     maia?.topProbability ?? null,
   ].filter((value) => value !== null);
-  const mastersTop = tops.length ? Math.max(...tops) : null;
+  const mastersTop = mastersTops.length ? Math.max(...mastersTops) : null;
 
   return {
     peer: { moves: peerMoves },
+    peers: { moves: peerProbMoves, topProbability: peerProbTop },
     masters: { moves: mastersMoves, topProbability: mastersTop },
   };
 }
@@ -256,6 +276,12 @@ function placeholderCircles() {
   return wrap;
 }
 
+function placeholderCirclesPair() {
+  const wrap = el('div', 'eval-circles-pair');
+  wrap.append(placeholderCircles(), placeholderCircles());
+  return wrap;
+}
+
 // The evaluation panel lives in the right side panel's analysis section.
 // Views:
 //   off        panel disabled
@@ -315,6 +341,11 @@ export class EvalPanel {
       doc.getElementById('eval-master'),
       MASTER_RANGES.map((range) => ({ value: range.value, label: range.label })),
       (value) => this.updateSettings({ master: value }),
+    );
+    this.probViewGroup = segmentedGroup(
+      doc.getElementById('eval-prob-view'),
+      PROBABILITY_VIEWS.map((view) => ({ value: view.value, label: view.label })),
+      (value) => this.updateSettings({ probView: value }),
     );
     this.ratingItems = RATINGS.map((rating) => {
       const item = el('li', 'eval-dd-item', String(rating));
@@ -504,6 +535,7 @@ export class EvalPanel {
     this.linesGroup.setValue(this.settings.lines);
     this.qualityGroup.setValue(this.settings.quality);
     this.masterGroup.setValue(String(this.settings.master));
+    this.probViewGroup.setValue(this.settings.probView);
     this.previewInput.checked = this.settings.preview;
     this.tokenInput.value = this.settings.token;
     this.tokenInput.placeholder = this.settings.token ? '' : 'Not set';
@@ -604,12 +636,15 @@ export class EvalPanel {
     const lineUcis = result.lines.map((line) => line.pv[0]);
     const peer = fetched.peer;
     const masters = fetched.masters;
-    const needPeer = !peer || lineUcis.some((uci) => !uci || gamesOf(peer.moves.get(uci)) === 0);
+    const needPeerWdl = !peer || lineUcis.some((uci) => !uci || gamesOf(peer.moves.get(uci)) === 0);
+    const view = this.settings.probView;
+    const needPeerProb = (view === 'peers' || view === 'both') && needPeerWdl;
     const needMasters = !masters || lineUcis.some((uci) => !uci || gamesOf(masters.moves.get(uci)) === 0);
+    const needMastersProb = (view === 'masters' || view === 'both') && needMasters;
 
     let maia = null;
     let maiaError = maiaLoadError;
-    if (!maiaError && (needPeer || needMasters)) {
+    if (!maiaError && (needPeerWdl || needPeerProb || needMastersProb)) {
       this.view = { ...this.view, maia: null };
       this.render();
       try {
@@ -619,8 +654,9 @@ export class EvalPanel {
           lines: result.lines,
           rating,
           master,
-          wantPeer: needPeer,
-          wantMasters: needMasters,
+          wantPeerWdl: needPeerWdl,
+          wantPeerProb: needPeerProb,
+          wantMasters: needMastersProb,
         });
       } catch (error) {
         maiaError = error;
@@ -657,14 +693,14 @@ export class EvalPanel {
     return { peer, masters, notes };
   }
 
-  async scoreWithMaia({ runId, fen, lines, rating, master, wantPeer, wantMasters }) {
+  async scoreWithMaia({ runId, fen, lines, rating, master, wantPeerWdl, wantPeerProb, wantMasters }) {
     await loadMaia((status) => this.onMaiaStatus(runId, status));
     const moves = lines.map((line) => {
       const uci = line.pv[0];
       return { uci, childFen: uci ? applyUci(fen, uci) : null };
     });
     const ratings = MASTER_RANGES.find((range) => range.value === master).ratings;
-    return scoreMoves({ fen, moves, rating, ratings, wdl: wantPeer, probabilities: wantMasters });
+    return scoreMoves({ fen, moves, rating, ratings, wdl: wantPeerWdl, peerProbability: wantPeerProb, probabilities: wantMasters });
   }
 
   // Called by loadMaia while the model downloads or prepares. Updates the
@@ -683,6 +719,26 @@ export class EvalPanel {
     } else {
       this.render();
     }
+  }
+
+  columnHeader() {
+    const header = el('div', 'eval-columns');
+    header.setAttribute('aria-hidden', 'true');
+    const label = (text) => el('span', 'eval-col-label', text);
+    header.append(
+      el('span', 'eval-col eval-col-move'),
+      el('span', 'eval-col eval-col-score'),
+      el('span', 'eval-col eval-col-wdl'),
+      el('span', 'eval-col eval-col-circles'),
+    );
+    const [, score, wdl, circles] = header.children;
+    score.append(label('Score'));
+    wdl.append(label('Peer results'));
+    const view = this.settings.probView;
+    const labelText =
+      view === 'both' ? 'Peers / Masters' : view === 'peers' ? 'Peers' : 'Masters';
+    circles.append(label(labelText));
+    return header;
   }
 
   render() {
@@ -726,7 +782,7 @@ export class EvalPanel {
 
     const lines = view.lines;
     const scoredAll = view.state === 'done' ? view.scored : null;
-    if (lines.length) this.body.append(columnHeader());
+    if (lines.length) this.body.append(this.columnHeader());
     const rows = Math.max(this.settings.lines, lines.length);
     for (let index = 0; index < rows; index += 1) {
       const line = lines[index];
@@ -768,7 +824,7 @@ export class EvalPanel {
       el('span', 'eval-skeleton eval-skeleton-move'),
       el('span', 'eval-skeleton eval-skeleton-score'),
       placeholderWdl(),
-      placeholderCircles(),
+      this.placeholderCirclesPair(),
     );
     row.append(primary, el('div', 'eval-skeleton eval-skeleton-cont'));
     return row;
@@ -808,7 +864,11 @@ export class EvalPanel {
       primary.append(placeholderWdl());
     }
 
-    primary.append(this.buildCircles(scored?.masters, scored?.masters.moves[index], complete));
+    primary.append(this.buildCirclesPair(
+      scored?.peers, scored?.peers.moves[index],
+      scored?.masters, scored?.masters.moves[index],
+      complete,
+    ));
     row.append(primary);
 
     const parts = afterFirst ? uciLineParts(afterFirst, line.pv.slice(1), CONTINUATION_PLIES) : [];
@@ -903,15 +963,36 @@ export class EvalPanel {
     else this.hidePreview();
   }
 
+  // Two probability lines stacked into one column: peers (top) and masters (bottom).
+  buildCirclesPair(peerColumn, peerEntry, masterColumn, masterEntry, complete) {
+    const wrap = el('div', 'eval-circles-pair');
+    const view = this.settings.probView;
+    if (view === 'peers' || view === 'both') {
+      wrap.append(this.buildCircles(peerColumn, peerEntry, complete, 'Lichess'));
+    }
+    if (view === 'masters' || view === 'both') {
+      wrap.append(this.buildCircles(masterColumn, masterEntry, complete, 'Masters'));
+    }
+    return wrap;
+  }
+
+  placeholderCirclesPair() {
+    const wrap = el('div', 'eval-circles-pair');
+    const view = this.settings.probView;
+    if (view === 'peers' || view === 'both') wrap.append(placeholderCircles());
+    if (view === 'masters' || view === 'both') wrap.append(placeholderCircles());
+    return wrap;
+  }
+
   // Circles are scaled against the most probable move in the position, so that
   // move always shows all DOTS filled.
-  // column is the Masters column value ({ source, topProbability }); entry is this line's value.
-  buildCircles(column, entry, complete) {
+  // column is the column value ({ source, topProbability }); entry is this line's value.
+  buildCircles(column, entry, complete, databaseName = 'Masters') {
     if (!complete) return placeholderCircles();
     const hasToken = Boolean(this.settings.token);
     const wrap = el('div', 'eval-circles-wrap');
     const circles = el('span', 'eval-circles');
-    wrap.append(circles, sourceSlot(entry?.source, 'Masters', entry?.games, hasToken));
+    wrap.append(circles, sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
     // A zero probability means the move has no games in the database (for DB
     // entries) or Maia estimated it as never played. Null/undefined means
     // no value exists at all, which is shown as a dash instead of circles.
@@ -922,11 +1003,13 @@ export class EvalPanel {
     const count = entry.probability < 0.01 || !column.topProbability
       ? 0
       : Math.min(DOTS, Math.max(1, Math.round((entry.probability / column.topProbability) * DOTS)));
+    const gamesLabel = databaseName === 'Masters' ? 'master games' : 'peer games';
     circles.setAttribute('role', 'img');
     circles.setAttribute('aria-label', `Probability ${count} of ${DOTS}`);
-    attachTip(circles, [entry.probability < 0.01 ? '< 1%' : formatPercent(entry.probability)]);
+    attachTip(circles, [entry.probability < 0.01 ? `< 1% of ${gamesLabel}` : `${formatPercent(entry.probability)} of ${gamesLabel}`]);
+    const onClass = databaseName === 'Masters' ? 'eval-dot eval-dot-on eval-dot-master' : 'eval-dot eval-dot-on';
     for (let i = 0; i < DOTS; i += 1) {
-      circles.append(el('span', i < count ? 'eval-dot eval-dot-on' : 'eval-dot'));
+      circles.append(el('span', i < count ? onClass : 'eval-dot'));
     }
     return wrap;
   }

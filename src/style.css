@@ -11,7 +11,7 @@
   --glyph-tint-6: #d9c24a;
   --glyph-tint-7: #6aa8e0;
   --glyph-tint-22: #b08ae0;
-  --side-panel-width: clamp(426px, calc(54vmin + 36px), 560px);
+  --side-panel-width: clamp(500px, calc(60vmin + 80px), 660px);
   --meta-panel-width: clamp(240px, 32vmin, 300px);
   --glass-bg: rgba(40, 42, 50, 0.5);
   --glass-bg-strong: rgba(32, 34, 42, 0.68);
@@ -1914,6 +1914,29 @@ main {
   border-color: var(--accent);
 }
 
+:root[data-theme="walnut"] .eval-dot.eval-dot-on:not(.eval-dot-master) {
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.eval-dot.eval-dot-master.eval-dot-on {
+  background: #94c99b;
+  border-color: #94c99b;
+}
+
+/* Darker circle fills on light themes for contrast. */
+:root[data-theme="birch"] .eval-dot.eval-dot-on,
+:root[data-theme="paper"] .eval-dot.eval-dot-on {
+  background: color-mix(in srgb, var(--accent) 70%, black);
+  border-color: color-mix(in srgb, var(--accent) 70%, black);
+}
+
+:root[data-theme="birch"] .eval-dot.eval-dot-master.eval-dot-on,
+:root[data-theme="paper"] .eval-dot.eval-dot-master.eval-dot-on {
+  background: color-mix(in srgb, #94c99b 70%, black);
+  border-color: color-mix(in srgb, #94c99b 70%, black);
+}
+
 /* Bar, then the source slot. */
 .eval-wdl-wrap {
   flex: none;
@@ -2010,6 +2033,17 @@ main {
   align-items: center;
   gap: 4px;
   width: 85px;
+}
+
+/* Two probability lines (peers, then masters) stacked in one column. */
+.eval-circles-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 101px;
+  padding-right: 16px;
+  flex: none;
+  box-sizing: border-box;
 }
 
 .eval-token-control {
@@ -2122,8 +2156,10 @@ main {
 }
 
 .eval-col-circles {
-  width: 85px;
+  width: 101px;
+  padding-right: 16px;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .eval-continuation {
