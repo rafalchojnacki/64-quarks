@@ -1,6 +1,6 @@
 /* Navy board (default) */
 cg-board {
-  background-color: #dee3e6;
+  background-color: #e6ecf0;
   background-image: url('/board/navy.svg');
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
 }
