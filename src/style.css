@@ -922,7 +922,7 @@ main {
 }
 
 .import-warning {
-  color: #e0a056 !important;
+  color: var(--glyph-tint-2) !important;
 }
 
 .import-dialog-actions {
