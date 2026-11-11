@@ -820,7 +820,18 @@ export class EvalPanel {
     const lines = view.lines;
     const scoredAll = view.state === 'done' ? view.scored : null;
     if (lines.length) this.body.append(this.columnHeader());
-    const rows = Math.max(this.settings.lines, lines.length);
+    // When the position has fewer legal moves than the configured number of
+    // lines, show only the moves the engine actually returned (no trailing
+    // placeholders). While searching/scoring, keep the configured height so the
+    // layout does not jump as lines arrive.
+    // Show only the lines Stockfish has actually returned. When the position has
+    // fewer legal moves than the configured count, Stockfish reports fewer lines
+    // (even mid-search), so no trailing placeholders are shown. Before any line
+    // arrives, keep the configured number of placeholders for a stable layout.
+    const rows =
+      lines.length > 0
+        ? Math.min(lines.length, this.settings.lines)
+        : this.settings.lines;
     for (let index = 0; index < rows; index += 1) {
       const line = lines[index];
       if (!line) {
