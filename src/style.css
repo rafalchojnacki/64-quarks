@@ -1561,7 +1561,7 @@ main {
     width: 100%;
     max-width: var(--frame-size);
     height: auto;
-    max-height: 320px;
+    max-height: 640px;
     margin-block: 0;
     padding: 0;
     justify-content: flex-start;

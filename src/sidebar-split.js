@@ -5,7 +5,7 @@
 const STORAGE_KEY = '64-quarks.analysisShare';
 const DEFAULT_SHARE = 0.4;
 const MIN_ANALYSIS_PX = 120;
-const MIN_MOVES_PX = 200;
+const MIN_MOVES_PX = 120;
 const KEY_STEP = 0.02;
 const DRAG_HINT = 'Drag to resize (arrow keys work too)';
 
