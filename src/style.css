@@ -921,6 +921,10 @@ main {
   color: #e05656 !important;
 }
 
+.import-warning {
+  color: #e0a056 !important;
+}
+
 .import-dialog-actions {
   display: flex;
   justify-content: flex-end;

@@ -32,7 +32,7 @@ export const PROBABILITY_VIEWS = [
 export const RESULT_VIEWS = [
   { value: 'engine', label: 'Engine' },
   { value: 'masters', label: 'Masters' },
-  { value: 'peers', label: 'Peers' },
+  { value: 'peers', label: 'Peer' },
   { value: 'off', label: 'Off' },
 ];
 

@@ -48,7 +48,7 @@ const clearAnnotationsBtn = document.getElementById('clear-annotations-btn');
 const importDialog = document.getElementById('import-dialog');
 const importInput = document.getElementById('import-input');
 const importError = document.getElementById('import-error');
-const importCancel = document.getElementById('import-cancel');
+const importWarning = document.getElementById('import-warning');const importCancel = document.getElementById('import-cancel');
 const importConfirm = document.getElementById('import-confirm');
 const boardEl = document.getElementById('board');
 const moveIndicator = document.getElementById('move-indicator');
@@ -91,7 +91,7 @@ let parentById = new Map();
 let nextNodeId = 1;
 let pendingPromotion = null;
 let pendingConfirm = null;
-// How the move list shows moves: 'inline', 'columns' or 'mixed'.
+let importOverrideConfirmed = false;// How the move list shows moves: 'inline', 'columns' or 'mixed'.
 let moveLayout = loadMoveLayout();
 let pendingImportChord = false;
 let pendingImportChordTimeout = null;
@@ -1239,6 +1239,8 @@ function closeImportDialog() {
 function openImportDialog() {
   importInput.value = '';
   importError.hidden = true;
+  const willOverride = moveTree.children.length > 0 || currentFen !== START_FEN;
+  importWarning.hidden = !willOverride;
   importDialog.hidden = false;
   importBtn.setAttribute('aria-expanded', 'true');
   importInput.focus();
