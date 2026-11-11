@@ -26,12 +26,24 @@ export function parseInfoLine(line) {
   else return null;
   const multipv = Number(value('multipv') ?? 1);
   const nodes = Number(value('nodes'));
+  const wdlIndex = tokens.indexOf('wdl');
+  let wdl = null;
+  if (wdlIndex >= 0 && wdlIndex + 3 < tokens.length) {
+    const w = Number(tokens[wdlIndex + 1]);
+    const d = Number(tokens[wdlIndex + 2]);
+    const l = Number(tokens[wdlIndex + 3]);
+    if (Number.isFinite(w) && Number.isFinite(d) && Number.isFinite(l)) {
+      const total = w + d + l;
+      if (total > 0) wdl = { win: w / total, draw: d / total, loss: l / total };
+    }
+  }
   return {
     depth,
     multipv: Number.isFinite(multipv) ? multipv : 1,
     nodes: Number.isFinite(nodes) ? nodes : null,
     score,
     pv: tokens.slice(pvIndex + 1),
+    wdl,
   };
 }
 

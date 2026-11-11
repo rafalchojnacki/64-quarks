@@ -27,6 +27,7 @@ import {
   MASTER_RANGES,
   PROBABILITY_VIEWS,
   QUALITY_LEVELS,
+  RESULT_VIEWS,
   RATINGS,
   loadSettings,
   normalizeSettings,
@@ -140,6 +141,20 @@ function columnValues({ fen, lines, peer, masters, maia }) {
     return estimate?.wdl ? { source: 'maia', wdl: estimate.wdl } : null;
   });
 
+  const mastersWdlMoves = lines.map((line, index) => {
+    const uci = line.pv[0];
+    if (masters && hasMasters(uci)) {
+      const counts = masters.moves.get(uci);
+      return { source: 'masters', wdl: databaseWdl(counts, mover), games: gamesOf(counts) };
+    }
+    const estimate = maia?.moves[index];
+    return estimate?.wdl ? { source: 'maia', wdl: estimate.wdl } : null;
+  });
+
+  const engineMoves = lines.map((line) => {
+    return line.wdl ? { source: 'engine', wdl: line.wdl } : null;
+  });
+
   const peerShare = (uci) => gamesOf(peer.moves.get(uci)) / peer.total;
   const peerProbMoves = lines.map((line, index) => {
     const uci = line.pv[0];
@@ -181,6 +196,8 @@ function columnValues({ fen, lines, peer, masters, maia }) {
 
   return {
     peer: { moves: peerMoves },
+    mastersWdl: { moves: mastersWdlMoves },
+    engine: { moves: engineMoves },
     peers: { moves: peerProbMoves, topProbability: peerProbTop },
     masters: { moves: mastersMoves, topProbability: mastersTop },
   };
@@ -206,7 +223,7 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
       hasToken
         ? 'Estimated (not enough games in the database)'
         : 'Estimated (Lichess token is not set in Settings)',
-      'Maia uses blitz-scale ratings; the game time control is not used.',
+      'The model uses blitz-scale ratings; the game time control is not used.',
     ];
   } else if (source === 'lichess' || source === 'masters') {
     slot.textContent = 'D';
@@ -347,6 +364,11 @@ export class EvalPanel {
       PROBABILITY_VIEWS.map((view) => ({ value: view.value, label: view.label })),
       (value) => this.updateSettings({ probView: value }),
     );
+    this.resultsViewGroup = segmentedGroup(
+      doc.getElementById('eval-results-view'),
+      RESULT_VIEWS.map((view) => ({ value: view.value, label: view.label })),
+      (value) => this.updateSettings({ resultsView: value }),
+    );
     this.ratingItems = RATINGS.map((rating) => {
       const item = el('li', 'eval-dd-item', String(rating));
       item.setAttribute('role', 'option');
@@ -479,7 +501,7 @@ export class EvalPanel {
 
   // The peer data depends on the game's speed, so the speed is part of the key.
   cacheKey(fen) {
-    return `${this.speed}|${fen}`;
+    return `${this.speed}|${this.settings.resultsView}|${fen}`;
   }
 
   // Keeps the most recent finished evaluations (CACHE_SIZE of them), oldest first.
@@ -536,6 +558,7 @@ export class EvalPanel {
     this.qualityGroup.setValue(this.settings.quality);
     this.masterGroup.setValue(String(this.settings.master));
     this.probViewGroup.setValue(this.settings.probView);
+    this.resultsViewGroup.setValue(this.settings.resultsView);
     this.previewInput.checked = this.settings.preview;
     this.tokenInput.value = this.settings.token;
     this.tokenInput.placeholder = this.settings.token ? '' : 'Not set';
@@ -636,11 +659,15 @@ export class EvalPanel {
     const lineUcis = result.lines.map((line) => line.pv[0]);
     const peer = fetched.peer;
     const masters = fetched.masters;
-    const needPeerWdl = !peer || lineUcis.some((uci) => !uci || gamesOf(peer.moves.get(uci)) === 0);
-    const view = this.settings.probView;
-    const needPeerProb = (view === 'peers' || view === 'both') && needPeerWdl;
+    const resultsView = this.settings.resultsView;
+    const probView = this.settings.probView;
     const needMasters = !masters || lineUcis.some((uci) => !uci || gamesOf(masters.moves.get(uci)) === 0);
-    const needMastersProb = (view === 'masters' || view === 'both') && needMasters;
+    const needPeerDbMissing = !peer || lineUcis.some((uci) => !uci || gamesOf(peer.moves.get(uci)) === 0);
+    let needPeerWdl = needPeerDbMissing;
+    // Masters results fall back to Maia WDL when the masters DB is missing a move.
+    if (resultsView === 'masters' && needMasters) needPeerWdl = true;
+    const needPeerProb = (probView === 'peers' || probView === 'both') && needPeerDbMissing;
+    const needMastersProb = (probView === 'masters' || probView === 'both') && needMasters;
 
     let maia = null;
     let maiaError = maiaLoadError;
@@ -725,19 +752,29 @@ export class EvalPanel {
     const header = el('div', 'eval-columns');
     header.setAttribute('aria-hidden', 'true');
     const label = (text) => el('span', 'eval-col-label', text);
-    header.append(
+    const resultsView = this.settings.resultsView;
+    const probView = this.settings.probView;
+    const spans = [
       el('span', 'eval-col eval-col-move'),
       el('span', 'eval-col eval-col-score'),
-      el('span', 'eval-col eval-col-wdl'),
-      el('span', 'eval-col eval-col-circles'),
-    );
-    const [, score, wdl, circles] = header.children;
+    ];
+    if (resultsView !== 'off') spans.push(el('span', 'eval-col eval-col-wdl'));
+    if (probView !== 'off') spans.push(el('span', 'eval-col eval-col-circles'));
+    header.append(...spans);
+    const score = header.children[1];
     score.append(label('Score'));
-    wdl.append(label('Peer results'));
-    const view = this.settings.probView;
-    const labelText =
-      view === 'both' ? 'Peers / Masters' : view === 'peers' ? 'Peers' : 'Masters';
-    circles.append(label(labelText));
+    if (resultsView !== 'off') {
+      const wdl = header.querySelector('.eval-col-wdl');
+      const labelText =
+        resultsView === 'peers' ? 'Peer results' : resultsView === 'masters' ? 'Masters results' : 'Engine results';
+      wdl.append(label(labelText));
+    }
+    if (probView !== 'off') {
+      const circles = header.querySelector('.eval-col-circles');
+      const labelText =
+        probView === 'both' ? 'Peers / Masters' : probView === 'peers' ? 'Peers' : 'Masters';
+      circles.append(label(labelText));
+    }
     return header;
   }
 
@@ -820,12 +857,13 @@ export class EvalPanel {
     const row = el('div', 'eval-line eval-line-pending');
     row.setAttribute('aria-hidden', 'true');
     const primary = el('div', 'eval-primary');
-    primary.append(
+    const items = [
       el('span', 'eval-skeleton eval-skeleton-move'),
       el('span', 'eval-skeleton eval-skeleton-score'),
-      placeholderWdl(),
-      this.placeholderCirclesPair(),
-    );
+    ];
+    if (this.settings.resultsView !== 'off') items.push(placeholderWdl());
+    if (this.settings.probView !== 'off') items.push(this.placeholderCirclesPair());
+    primary.append(...items);
     row.append(primary, el('div', 'eval-skeleton eval-skeleton-cont'));
     return row;
   }
@@ -858,17 +896,39 @@ export class EvalPanel {
     primary.append(moveEl);
     primary.append(el('span', 'eval-score', formatScore(line.score, sideToMoveOf(fen))));
 
-    if (complete) {
-      primary.append(this.buildWdl(fen, scored.peer, scored.peer.moves[index]));
-    } else {
-      primary.append(placeholderWdl());
+    const resultsView = this.settings.resultsView;
+    const probView = this.settings.probView;
+    if (resultsView !== 'off') {
+      if (complete) {
+        let column = scored.peer;
+        let entry = scored.peer.moves[index];
+        let dbName = 'Lichess';
+        if (resultsView === 'peers') {
+          column = scored.peer;
+          entry = scored.peer.moves[index];
+          dbName = 'Lichess';
+        } else if (resultsView === 'masters') {
+          column = scored.mastersWdl;
+          entry = scored.mastersWdl.moves[index];
+          dbName = 'Masters';
+        } else if (resultsView === 'engine') {
+          column = scored.engine;
+          entry = scored.engine.moves[index];
+          dbName = 'Engine';
+        }
+        primary.append(this.buildWdl(fen, column, entry, dbName));
+      } else {
+        primary.append(placeholderWdl());
+      }
     }
 
-    primary.append(this.buildCirclesPair(
-      scored?.peers, scored?.peers.moves[index],
-      scored?.masters, scored?.masters.moves[index],
-      complete,
-    ));
+    if (probView !== 'off') {
+      primary.append(this.buildCirclesPair(
+        scored?.peers, scored?.peers.moves[index],
+        scored?.masters, scored?.masters.moves[index],
+        complete,
+      ));
+    }
     row.append(primary);
 
     const parts = afterFirst ? uciLineParts(afterFirst, line.pv.slice(1), CONTINUATION_PLIES) : [];
@@ -1014,12 +1074,12 @@ export class EvalPanel {
     return wrap;
   }
 
-  // column is the Peer results column value ({ source, moves }); entry is this line's value.
-  buildWdl(fen, column, entry) {
+  // column is the results column value ({ source, moves }); entry is this line's value.
+  buildWdl(fen, column, entry, databaseName = 'Lichess') {
     const wrap = el('div', 'eval-wdl-wrap');
     const hasToken = Boolean(this.settings.token);
     if (!entry || !entry.wdl) {
-      wrap.append(el('div', 'eval-empty-inline', '—'), sourceSlot(entry?.source, 'Lichess', entry?.games, hasToken));
+      wrap.append(el('div', 'eval-empty-inline', '—'), sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
       return wrap;
     }
     const mover = sideToMoveOf(fen);
@@ -1038,7 +1098,7 @@ export class EvalPanel {
       segment.style.width = formatPercent(white[key]);
       bar.append(segment);
     }
-    wrap.append(bar, sourceSlot(entry?.source, 'Lichess', entry?.games, hasToken));
+    wrap.append(bar, sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
     return wrap;
   }
 }

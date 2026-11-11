@@ -27,6 +27,7 @@ export class StockfishEngine {
 
   handleLine(line) {
     if (line === 'uciok') {
+      this.worker.postMessage('setoption name UCI_ShowWDL value true');
       this.worker.postMessage('isready');
       return;
     }

@@ -1875,6 +1875,7 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
+  font-weight: 500;
 }
 
 .eval-move-clickable {

@@ -142,23 +142,10 @@
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
-                      <span class="settings-item-title">Engine analysis depth</span>
+                      <span class="settings-item-title">Engine analysis efforth</span>
                       <span class="settings-item-desc">How many postions are analyzed by the engine</span>
                     </span>
-                    <div id="eval-quality" class="eval-seg" role="group" aria-label="Engine analysis depth"></div>
-                  </div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Peer rating</span>
-                      <span class="settings-item-desc">Reference raiting for white-win/draw/black-win likelihood. Helps to asses the game outcome when played by humans. Peer database data uses the game's time control; defaults to blitz if unknown. Estimates use Maia3 model, i.e. blitz rating regardless of a game time control.</span>
-                    </span>
-                    <div class="eval-dropdown settings-dropdown">
-                      <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
-                        <span id="eval-rating-label"></span>
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg>
-                      </button>
-                      <ul id="eval-rating-list" class="eval-dd-list" role="listbox" aria-label="Peer rating" hidden></ul>
-                    </div>
+                    <div id="eval-quality" class="eval-seg" role="group" aria-label="Engine analysis efforth"></div>
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
@@ -169,10 +156,31 @@
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
-                      <span class="settings-item-title">Probability columns</span>
-                      <span class="settings-item-desc">Which move-probability lines are shown</span>
+                      <span class="settings-item-title">Peer rating</span>
+                      <span class="settings-item-desc">Reference raiting for peer play evaluation. Peer database data uses the game's time control; defaults to blitz if unknown. Estimates use Maia3 model, i.e. blitz rating regardless of a game time control.</span>
                     </span>
-                    <div id="eval-prob-view" class="eval-seg" role="group" aria-label="Probability columns"></div>
+                    <div class="eval-dropdown settings-dropdown">
+                      <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
+                        <span id="eval-rating-label"></span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg>
+                      </button>
+                      <ul id="eval-rating-list" class="eval-dd-list" role="listbox" aria-label="Peer rating" hidden></ul>
+                    </div>
+                  </div>
+                  <div class="settings-divider"></div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Results column</span>
+                      <span class="settings-item-desc">Which win/draw/loss result is shown</span>
+                    </span>
+                    <div id="eval-results-view" class="eval-seg" role="group" aria-label="Results column"></div>
+                  </div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Probability column</span>
+                      <span class="settings-item-desc">Which move-probability line is shown</span>
+                    </span>
+                    <div id="eval-prob-view" class="eval-seg" role="group" aria-label="Probability column"></div>
                   </div>
                   <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
                     <span class="settings-item-label">
@@ -182,6 +190,7 @@
                     <input id="eval-preview" type="checkbox" />
                     <span class="settings-switch" aria-hidden="true"></span>
                   </label>
+                  <div class="settings-divider"></div>
                   <div class="settings-item">
                     <span class="settings-item-label">
                       <span class="settings-item-title">Lichess token</span>
