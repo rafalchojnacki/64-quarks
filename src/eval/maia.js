@@ -55,9 +55,9 @@ function average(values) {
 //   moves:     [{ uci, childFen }] one entry per engine line, childFen is the
 //              position after that move
 //   rating:    rating used for the peer win/draw/loss and the peer move probability
-//              (blitz-scale; Maia does not use the game's time control)
+//              (Lichess player rating; Maia does not use the game's time control)
 //   ratings:   Maia3 ratings averaged for the Masters move probability (see
-//              MASTER_RANGES); blitz-scale, independent of the game's time control
+//              MASTER_RANGES); Lichess player rating, independent of the game's time control
 //   probabilities: compute the Masters move probability (averaged over `ratings`).
 //   peerProbability: compute the Peer move probability (for `rating`).
 //   wdl:       compute the peer win/draw/loss from the child positions.

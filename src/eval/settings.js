@@ -12,7 +12,7 @@ export const QUALITY_LEVELS = {
 export const RATINGS = Array.from({ length: 21 }, (_, i) => 600 + i * 100);
 
 // Maia3 ratings averaged for the move-probability circles. Maia3 is conditioned
-// on Lichess blitz-scale ratings, so these are blitz-scale values.
+// on a Lichess player rating; time control is not used.
 // An array keeps the display order explicit (integer-like object keys sort first).
 export const MASTER_RANGES = [
   { value: '2200+', label: '2200-2600', ratings: [2200, 2300, 2400, 2500, 2600] },

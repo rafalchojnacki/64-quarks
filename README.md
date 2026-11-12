@@ -10,8 +10,8 @@ move tree, and see engine lines with human-likelihood data.
 - Peer and Masters columns from the Lichess opening explorer (needs a token).
   Peer data is filtered by the game's time control (speed derived from its PGN
   TimeControl, defaulting to blitz when unknown); the Masters database holds
-  classical games only. Maia3 estimates use blitz-scale ratings and do not use
-  the game's time control.
+  classical games only. Maia3 estimates are conditioned on a Lichess player
+  rating and do not use the game's time control.
 - Maia3 human-move estimates where the database has too few games (marked `E`).
 - Five page themes and two piece sets.
 

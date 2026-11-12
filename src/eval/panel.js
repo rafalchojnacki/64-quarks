@@ -221,9 +221,9 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
     // Without a token the database is never queried, so say that instead.
     lines = [
       hasToken
-        ? 'Estimated (not enough games in the database)'
-        : 'Estimated (Lichess token is not set in Settings)',
-      'The model uses blitz-scale ratings; the game time control is not used.',
+        ? 'Estimated (not enough games in the database).'
+        : 'Estimated (Lichess token is not set in Settings).',
+      'The value may be inaccurate. Maia3 is conditioned on a Lichess player rating and does not use the game\'s time control.',
     ];
   } else if (source === 'lichess' || source === 'masters') {
     slot.textContent = 'D';
@@ -472,8 +472,8 @@ export class EvalPanel {
   // Called from the main board refresh; a no-op when neither the position nor the
   // game's time control changed. timeControl is the PGN TimeControl value of the
   // open game (or null if unknown); it selects the Lichess speed for the peer
-  // data (defaulting to blitz). Maia estimation ignores time control and uses
-  // blitz-scale ratings.
+  // data (defaulting to blitz). Maia estimation is conditioned on a Lichess
+  // player rating and does not use time control.
   setFen(fen, timeControl = null) {
     const speed = gameSpeed(timeControl);
     if (fen === this.fen && speed === this.speed) return;

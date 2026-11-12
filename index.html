@@ -142,22 +142,22 @@
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
-                      <span class="settings-item-title">Engine analysis efforth</span>
-                      <span class="settings-item-desc">How many postions are analyzed by the engine</span>
+                      <span class="settings-item-title">Engine analysis effort</span>
+                      <span class="settings-item-desc">How many positions are analyzed by the engine</span>
                     </span>
-                    <div id="eval-quality" class="eval-seg" role="group" aria-label="Engine analysis efforth"></div>
+                    <div id="eval-quality" class="eval-seg" role="group" aria-label="Engine analysis effort"></div>
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
-                      <span class="settings-item-title">Master raitings</span>
-		      <span class="settings-item-desc">Reference raiting for move play likelihood. Helps assess for best engine moves how difficult a move is to find. The Masters database holds classical games only. Estimates use Maia3 model, i.e. selected blitz-scale rating range regardless of a game time control.</span>
+                      <span class="settings-item-title">Master ratings</span>
+		      <span class="settings-item-desc">Reference rating for move likelihood. The Masters database holds classical games only. Maia3 estimates are conditioned on a Lichess player rating and do not use the game's time control.</span>
                     </span>
                     <div id="eval-master" class="eval-seg" role="group" aria-label="Master blitz ratings"></div>
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
                       <span class="settings-item-title">Peer rating</span>
-                      <span class="settings-item-desc">Reference raiting for peer play evaluation. Peer database data uses the game's time control; defaults to blitz if unknown. Estimates use Maia3 model, i.e. blitz rating regardless of a game time control.</span>
+                      <span class="settings-item-desc">Reference rating for peer play. Peer database data uses the game's time control (blitz if unknown). Maia3 estimates are conditioned on a Lichess player rating and do not use the game's time control.</span>
                     </span>
                     <div class="eval-dropdown settings-dropdown">
                       <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
