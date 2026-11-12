@@ -266,14 +266,8 @@
                     <button id="clear-annotations-btn" type="button" title="Clear all annotations" aria-label="Clear all annotations">
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 7l6 6m0-6-6 6" /></svg>
                     </button>
-                    <button id="copy-fen-btn" type="button" title="Copy FEN to clipboard" aria-label="Copy FEN to clipboard">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                    </button>
-                    <button id="copy-pgn-btn" type="button" title="Copy PGN to clipboard" aria-label="Copy PGN to clipboard">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><defs><pattern id="stripes" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 1H4" stroke="currentColor" stroke-width="1.5"/></pattern><clipPath id="back"><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></clipPath></defs><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 4H12V13H4Z" fill="url(#stripes)" clip-path="url(#back)"/><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                    </button>
-                    <button id="download-pgn-btn" type="button" title="Download PGN file" aria-label="Download PGN file">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-5-5m5 5l5-5M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" /></svg>
+                    <button id="share-btn" type="button" title="Share position and game" aria-label="Share position and game" aria-haspopup="dialog">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2" /><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" /><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
                     </button>
                   </div>
                 </div>
@@ -303,6 +297,40 @@
         <div class="delete-dialog-actions">
           <button id="delete-cancel" type="button">Cancel</button>
           <button id="delete-confirm" type="button">Delete</button>
+        </div>
+      </div>
+    </div>
+    <div id="share-dialog" class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title" hidden>
+      <div class="share-dialog-panel">
+        <h2 id="share-dialog-title">Share</h2>
+        <div class="share-row">
+          <input id="share-fen-input" type="text" readonly spellcheck="false" />
+          <div class="share-row-actions">
+            <button id="share-fen-copy" type="button" title="Copy FEN to clipboard" aria-label="Copy FEN to clipboard">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+            </button>
+            <button id="share-fen-download" type="button" title="Download FEN file" aria-label="Download FEN file">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-5-5m5 5l5-5M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" /></svg>
+            </button>
+          </div>
+        </div>
+        <div class="share-row">
+          <textarea id="share-pgn-input" rows="8" readonly spellcheck="false"></textarea>
+          <div class="share-row-actions">
+            <button id="share-pgn-copy" type="button" title="Copy PGN to clipboard" aria-label="Copy PGN to clipboard">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+            </button>
+            <button id="share-pgn-download" type="button" title="Download PGN file" aria-label="Download PGN file">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-5-5m5 5l5-5M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" /></svg>
+            </button>
+          </div>
+        </div>
+        <div class="share-options">
+          <label class="share-option"><input id="share-pgn-variations" type="checkbox" checked /> <span>Include variations</span></label>
+          <label class="share-option"><input id="share-pgn-annotations" type="checkbox" checked /> <span>Include annotations</span></label>
+        </div>
+        <div class="share-dialog-actions">
+          <button id="share-close" type="button">Close</button>
         </div>
       </div>
     </div>

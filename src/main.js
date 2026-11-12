@@ -400,6 +400,7 @@ function refresh() {
   ensureActiveMoveVisible();
   evalPanel.setFen(currentFen, moveTree?.metadata?.TimeControl ?? null);
   renderMetaPanel();
+  if (shareDialog && !shareDialog.hidden) updateShareDialog();
   saveState();
 }
 
@@ -1343,6 +1344,10 @@ document.addEventListener('keydown', (event) => {
     closeImportDialog();
     return;
   }
+  if (event.key === 'Escape' && shareDialog && !shareDialog.hidden) {
+    closeShareDialog();
+    return;
+  }
   if (event.key === 'Escape' && !deleteDialog.hidden) {
     closeDeleteDialog();
     return;
@@ -1526,14 +1531,16 @@ function formatEvalComment(engineEval) {
   return `{ [%eval ${engineEval.value.toFixed(2)}] }`;
 }
 
-function formatMoveToken(node, forceNumber) {
+function formatMoveToken(node, forceNumber, includeAnnotations = true) {
   const parts = [];
   if (node.color === 'w') parts.push(`${node.moveNumber}. ${node.san}`);
   else parts.push(forceNumber ? `${node.moveNumber}... ${node.san}` : node.san);
-  if (MOVE_GLYPH_BY_ID.has(node.moveGlyph)) parts.push(`$${node.moveGlyph}`);
-  if (POSITION_GLYPH_BY_ID.has(node.positionGlyph)) parts.push(`$${node.positionGlyph}`);
-  const evalComment = formatEvalComment(node.engineEval);
-  if (evalComment) parts.push(evalComment);
+  if (includeAnnotations) {
+    if (MOVE_GLYPH_BY_ID.has(node.moveGlyph)) parts.push(`$${node.moveGlyph}`);
+    if (POSITION_GLYPH_BY_ID.has(node.positionGlyph)) parts.push(`$${node.positionGlyph}`);
+    const evalComment = formatEvalComment(node.engineEval);
+    if (evalComment) parts.push(evalComment);
+  }
   return parts.join(' ');
 }
 
@@ -1542,17 +1549,17 @@ function formatMoveToken(node, forceNumber) {
 // the other children of a main-line move are emitted right after that move.
 // Variation roots are not main children, so their siblings are not emitted
 // again inside the variation (that would recurse forever).
-function formatLine(first, parent, forceNumber = true, firstIsMain = true, mainOf = mainChildOf) {
+function formatLine(first, parent, forceNumber = true, firstIsMain = true, mainOf = mainChildOf, includeVariations = true, includeAnnotations = true) {
   const tokens = [];
   let node = first;
   let owner = parent;
   let isMain = firstIsMain;
   let force = forceNumber;
   while (node) {
-    tokens.push(formatMoveToken(node, force));
-    const alternatives = isMain ? owner.children.filter((child) => child.id !== node.id) : [];
+    tokens.push(formatMoveToken(node, force, includeAnnotations));
+    const alternatives = includeVariations && isMain ? owner.children.filter((child) => child.id !== node.id) : [];
     for (const alternative of alternatives) {
-      tokens.push(`(${formatLine(alternative, owner, true, false, mainOf).join(' ')})`);
+      tokens.push(`(${formatLine(alternative, owner, true, false, mainOf, includeVariations, includeAnnotations).join(' ')})`);
     }
     force = alternatives.length > 0;
     owner = node;
@@ -1562,16 +1569,26 @@ function formatLine(first, parent, forceNumber = true, firstIsMain = true, mainO
   return tokens;
 }
 
-function buildPgn() {
+function buildPgn(options = {}) {
+  const includeVariations = options.includeVariations !== false;
+  const includeAnnotations = options.includeAnnotations !== false;
   const { lines, termination } = pgnHeaderLines(moveTree);
   const main = mainChildOf(moveTree);
-  const movetext = main ? formatLine(main, moveTree).join(' ') : '';
+  const movetext = main ? formatLine(main, moveTree, true, true, mainChildOf, includeVariations, includeAnnotations).join(' ') : '';
   return assemblePgn(lines, movetext, termination);
 }
 
-const copyFenBtn = document.getElementById('copy-fen-btn');
-const copyPgnBtn = document.getElementById('copy-pgn-btn');
-const downloadPgnBtn = document.getElementById('download-pgn-btn');
+const shareBtn = document.getElementById('share-btn');
+const shareDialog = document.getElementById('share-dialog');
+const shareFenInput = document.getElementById('share-fen-input');
+const sharePgnInput = document.getElementById('share-pgn-input');
+const shareFenCopy = document.getElementById('share-fen-copy');
+const shareFenDownload = document.getElementById('share-fen-download');
+const sharePgnCopy = document.getElementById('share-pgn-copy');
+const sharePgnDownload = document.getElementById('share-pgn-download');
+const sharePgnVariations = document.getElementById('share-pgn-variations');
+const sharePgnAnnotations = document.getElementById('share-pgn-annotations');
+const shareClose = document.getElementById('share-close');
 
 function copyTextFallback(text) {
   const area = document.createElement('textarea');
@@ -1586,39 +1603,105 @@ function copyTextFallback(text) {
   return ok;
 }
 
-copyFenBtn.addEventListener('click', async () => {
-  const fen = currentFen;
-  try {
-    await navigator.clipboard.writeText(fen);
-  } catch {
-    if (!copyTextFallback(fen)) {
-      window.alert('Could not copy the position to the clipboard.');
-    }
-  }
-});
+function sharePgnOptions() {
+  return {
+    includeVariations: sharePgnVariations ? sharePgnVariations.checked : true,
+    includeAnnotations: sharePgnAnnotations ? sharePgnAnnotations.checked : true,
+  };
+}
 
-copyPgnBtn.addEventListener('click', async () => {
-  const pgn = buildPgn();
-  try {
-    await navigator.clipboard.writeText(pgn);
-  } catch {
-    if (!copyTextFallback(pgn)) {
-      window.alert('Could not copy the PGN to the clipboard.');
-    }
-  }
-});
+function updateShareDialog() {
+  if (!shareDialog) return;
+  if (shareFenInput) shareFenInput.value = currentFen;
+  if (sharePgnInput) sharePgnInput.value = buildPgn(sharePgnOptions());
+}
 
-downloadPgnBtn.addEventListener('click', () => {
-  const blob = new Blob([`${buildPgn()}\n`], { type: 'application/x-chess-pgn' });
+function openShareDialog() {
+  if (!shareDialog) return;
+  if (sharePgnVariations) sharePgnVariations.checked = true;
+  if (sharePgnAnnotations) sharePgnAnnotations.checked = true;
+  updateShareDialog();
+  shareDialog.hidden = false;
+  shareBtn?.setAttribute('aria-expanded', 'true');
+}
+
+function closeShareDialog() {
+  if (!shareDialog) return;
+  shareDialog.hidden = true;
+  shareBtn?.setAttribute('aria-expanded', 'false');
+}
+
+function downloadText(filename, content, type) {
+  const blob = new Blob([`${content}\n`], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'game.pgn';
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
-});
+}
+
+async function copyText(text, failureMessage) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    if (!copyTextFallback(text)) {
+      window.alert(failureMessage);
+    }
+  }
+}
+
+if (shareBtn) {
+  shareBtn.addEventListener('click', openShareDialog);
+}
+
+if (shareClose) {
+  shareClose.addEventListener('click', closeShareDialog);
+}
+
+if (shareDialog) {
+  shareDialog.addEventListener('click', (event) => {
+    if (event.target === shareDialog) closeShareDialog();
+  });
+}
+
+if (sharePgnVariations) {
+  sharePgnVariations.addEventListener('change', updateShareDialog);
+}
+
+if (sharePgnAnnotations) {
+  sharePgnAnnotations.addEventListener('change', updateShareDialog);
+}
+
+if (shareFenCopy) {
+  shareFenCopy.addEventListener('click', () => {
+    copyText(shareFenInput ? shareFenInput.value : currentFen, 'Could not copy the position to the clipboard.');
+  });
+}
+
+if (sharePgnCopy) {
+  sharePgnCopy.addEventListener('click', () => {
+    const pgn = buildPgn(sharePgnOptions());
+    if (sharePgnInput) sharePgnInput.value = pgn;
+    copyText(pgn, 'Could not copy the PGN to the clipboard.');
+  });
+}
+
+if (shareFenDownload) {
+  shareFenDownload.addEventListener('click', () => {
+    downloadText('position.fen', shareFenInput ? shareFenInput.value : currentFen, 'text/plain');
+  });
+}
+
+if (sharePgnDownload) {
+  sharePgnDownload.addEventListener('click', () => {
+    const pgn = buildPgn(sharePgnOptions());
+    if (sharePgnInput) sharePgnInput.value = pgn;
+    downloadText('game.pgn', pgn, 'application/x-chess-pgn');
+  });
+}
 
 const timerToggle = document.getElementById('timer-toggle');
 const timerPanel = document.getElementById('timer-panel');
