@@ -2118,8 +2118,8 @@ main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 3px;
   font-size: 9px;
   font-weight: 600;
@@ -2127,6 +2127,16 @@ main {
   color: var(--text-dim);
   border: 1px solid color-mix(in srgb, var(--text-dim) 60%, transparent);
   cursor: help;
+}
+
+/* Nudge the D/E glyphs down a pixel so they sit vertically centered in the badge. */
+.eval-source-glyph {
+  display: inline-block;
+  line-height: 1;
+}
+
+.eval-source-glyph--low {
+  transform: translateY(1px);
 }
 
 /* Custom tooltip for the D/E indicators. Shown at once on hover (no native delay),

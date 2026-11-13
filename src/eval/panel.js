@@ -220,7 +220,8 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
   const slot = el('span', 'eval-source-slot');
   let lines;
   if (source === 'maia') {
-    slot.textContent = 'E';
+    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'E');
+    slot.append(glyph);
     slot.classList.add('eval-source-maia');
     // Without a token the database is never queried, so say that instead.
     lines = [
@@ -230,7 +231,8 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
       'The value may be inaccurate. Maia3 is conditioned on a Lichess player rating and does not use the game\'s time control.',
     ];
   } else if (source === 'lichess' || source === 'masters') {
-    slot.textContent = 'D';
+    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'D');
+    slot.append(glyph);
     slot.classList.add('eval-source-db');
     // Time control for database data: peer data is filtered by the game's speed
     // (derived from its PGN TimeControl, defaulting to blitz when unknown); the
@@ -255,12 +257,14 @@ function scoreSourceSlot(source) {
   const slot = el('span', 'eval-source-slot');
   let lines;
   if (source === 'tablebase') {
-    slot.textContent = 'T';
+    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'T');
+    slot.append(glyph);
     slot.classList.add('eval-source-tablebase');
     slot.setAttribute('aria-label', 'Tablebase');
     lines = ['Score from the endgame tablebase.'];
   } else {
-    slot.textContent = 'E';
+    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'E');
+    slot.append(glyph);
     slot.classList.add('eval-source-engine');
     slot.setAttribute('aria-label', 'Engine evaluation');
     lines = ['Score from the engine evaluation.'];
