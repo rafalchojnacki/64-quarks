@@ -2025,6 +2025,13 @@ main {
   color: var(--eval-tint);
 }
 
+.eval-score-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 4.5em;
+}
+
 /* Fixed width so the circles and their header label occupy the same space. */
 .eval-circles {
   display: inline-flex;

@@ -145,3 +145,77 @@ export function fetchPeerDatabase({ fen, rating, speed, token }) {
 export function fetchMastersDatabase({ fen, token }) {
   return getExplorer(`${MASTERS_URL}?${new URLSearchParams({ fen })}`, token);
 }
+
+// Lichess Syzygy tablebases. Public, no token required.
+const TABLEBASE_URL = 'https://tablebase.lichess.org/standard';
+const tablebaseCache = new Map();
+
+export function fetchTablebase(input) {
+  const fen = typeof input === 'string' ? input : input?.fen;
+  if (!fen) throw new LichessError('a FEN is required');
+  if (tablebaseCache.has(fen)) return Promise.resolve(tablebaseCache.get(fen));
+  const url = `${TABLEBASE_URL}?${new URLSearchParams({ fen })}`;
+  return enqueue(async () => {
+    if (tablebaseCache.has(fen)) return tablebaseCache.get(fen);
+    let response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new LichessError('network error');
+    }
+    if (response.status === 429) {
+      cooldownUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+      throw new LichessError('rate limited, try again later');
+    }
+    if (!response.ok) throw new LichessError(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (tablebaseCache.size >= CACHE_LIMIT) tablebaseCache.delete(tablebaseCache.keys().next().value);
+    tablebaseCache.set(fen, data);
+    return data;
+  });
+}
+
+export const fetchTablebaseDatabase = fetchTablebase;
+
+export function isTablebaseAvailable(data) {
+  return Boolean(data && Array.isArray(data.moves) && data.category && data.category !== 'unknown');
+}
+
+export function tablebasePositionScore(data) {
+  if (!isTablebaseAvailable(data)) return null;
+  const category = data.category;
+  if (category === 'draw' || category === 'insufficient_material') {
+    return { cp: 0 };
+  }
+  if (category === 'win') {
+    return { mate: data.dtm != null ? data.dtm : 1 };
+  }
+  if (category === 'loss') {
+    return { mate: data.dtm != null ? data.dtm : -1 };
+  }
+  return null;
+}
+
+export function tablebaseMoveScore(entry) {
+  if (!entry) return null;
+  const category = entry.category;
+  if (category === 'unknown') return null;
+  if (category === 'draw' || category === 'insufficient_material' || entry.insufficient_material) {
+    return { cp: 0 };
+  }
+  if (category === 'win') {
+    const distance = entry.dtm != null ? Math.abs(entry.dtm) + 1 : 1;
+    return { mate: -distance };
+  }
+  if (category === 'loss') {
+    const distance = entry.dtm != null ? Math.abs(entry.dtm) + 1 : 1;
+    return { mate: distance };
+  }
+  if (entry.checkmate) {
+    return { mate: -1 };
+  }
+  if (entry.stalemate) {
+    return { cp: 0 };
+  }
+  return null;
+}

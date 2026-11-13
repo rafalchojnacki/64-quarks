@@ -4,6 +4,9 @@ import {
   MIN_DB_GAMES,
   fetchMastersDatabase,
   fetchPeerDatabase,
+  fetchTablebase,
+  isTablebaseAvailable,
+  tablebaseMoveScore,
   gameSpeed,
   validateLichessToken,
 } from './lichess.js';
@@ -13,6 +16,7 @@ import {
   applyUci,
   formatPercent,
   formatScore,
+  scoreToCp,
   lossBand,
   lossForLine,
   sideToMoveOf,
@@ -241,6 +245,27 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
   }
   slot.setAttribute('role', 'img');
   slot.setAttribute('aria-label', lines.join('. '));
+  attachTip(slot, lines);
+  return slot;
+}
+
+// Indicator for the Score column: T when the score comes from the tablebase,
+// E when it comes from the engine evaluation.
+function scoreSourceSlot(source) {
+  const slot = el('span', 'eval-source-slot');
+  let lines;
+  if (source === 'tablebase') {
+    slot.textContent = 'T';
+    slot.classList.add('eval-source-tablebase');
+    slot.setAttribute('aria-label', 'Tablebase');
+    lines = ['Score from the endgame tablebase.'];
+  } else {
+    slot.textContent = 'E';
+    slot.classList.add('eval-source-engine');
+    slot.setAttribute('aria-label', 'Engine evaluation');
+    lines = ['Score from the engine evaluation.'];
+  }
+  slot.setAttribute('role', 'img');
   attachTip(slot, lines);
   return slot;
 }
@@ -603,36 +628,74 @@ export class EvalPanel {
       () => null,
       (error) => error,
     );
+
+    // Consult the tablebase first: when the position is resolved there, the
+    // engine search is skipped entirely and its scores are used.
+    let tablebase = null;
     try {
-      await this.engine.ready;
+      tablebase = await fetchTablebase(fen);
     } catch (error) {
-      if (runId !== this.runId) return;
-      this.view = { state: 'error', fen, message: `Engine failed: ${error.message}` };
-      this.render();
-      return;
+      tablebase = error;
+    }
+    if (runId !== this.runId) return;
+    const tbUsableEarly = isTablebaseAvailable(tablebase);
+
+    if (!tbUsableEarly) {
+      try {
+        await this.engine.ready;
+      } catch (error) {
+        if (runId !== this.runId) return;
+        this.view = { state: 'error', fen, message: `Engine failed: ${error.message}` };
+        this.render();
+        return;
+      }
     }
     // A Maia3 load failure does not stop the search; the Maia3 values are then missing.
     const maiaLoadError = await maiaLoad;
     if (runId !== this.runId) return;
 
-    this.view = { state: 'searching', fen, lines: [], progress: 0 };
-    this.render();
-
-    const result = await this.engine.analyze({
-      fen,
-      multiPV: count,
-      nodes: QUALITY_LEVELS[quality].nodes,
-      onUpdate: (lines) => {
-        if (runId !== this.runId) return;
-        this.view = { ...this.view, state: 'searching', fen, lines };
-        this.render();
-      },
-      onProgress: (progress) => {
-        if (runId !== this.runId) return;
-        this.view = { ...this.view, progress };
-        this.render();
-      },
-    });
+    let result;
+    if (tbUsableEarly) {
+      const tbMoves = [...tablebase.moves].sort((a, b) => {
+        const sa = tablebaseMoveScore(a);
+        const sb = tablebaseMoveScore(b);
+        return scoreToCp(sb) - scoreToCp(sa);
+      });
+      const selected = tbMoves.slice(0, count);
+      const lines = selected.map((move, index) => {
+        const line = {
+          depth: 0,
+          multipv: index + 1,
+          nodes: 0,
+          score: tablebaseMoveScore(move),
+          pv: [move.uci],
+          wdl: null,
+        };
+        line.scoreSource = 'tablebase';
+        return line;
+      });
+      result = { lines, cancelled: false };
+      this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null };
+      this.render();
+    } else {
+      this.view = { state: 'searching', fen, lines: [], progress: 0 };
+      this.render();
+      result = await this.engine.analyze({
+        fen,
+        multiPV: count,
+        nodes: QUALITY_LEVELS[quality].nodes,
+        onUpdate: (lines) => {
+          if (runId !== this.runId) return;
+          this.view = { ...this.view, state: 'searching', fen, lines };
+          this.render();
+        },
+        onProgress: (progress) => {
+          if (runId !== this.runId) return;
+          this.view = { ...this.view, progress };
+          this.render();
+        },
+      });
+    }
     if (runId !== this.runId) return;
     if (result.error) {
       this.view = { state: 'error', fen, message: `Engine failed: ${result.error.message}` };
@@ -653,6 +716,29 @@ export class EvalPanel {
     const fetched = await this.fetchDatabases(fen, rating, this.speed, token);
     const { notes } = fetched;
     if (runId !== this.runId) return;
+
+    // Tablebase: when the position is resolved by the tablebase, its score
+    // replaces the engine's score for every candidate move.
+    try {
+      tablebase = await fetchTablebase(fen);
+    } catch (error) {
+      notes.push(`Tablebase unavailable: ${error.message}.`);
+    }
+    if (runId !== this.runId) return;
+    const tbUsable = isTablebaseAvailable(tablebase);
+    const tbMoves = tbUsable ? new Map((tablebase.moves || []).map((move) => [move.uci, move])) : null;
+    for (const line of result.lines) {
+      const uci = line.pv[0];
+      if (tbUsable && tbMoves && uci) {
+        const score = tablebaseMoveScore(tbMoves.get(uci));
+        if (score) {
+          line.score = score;
+          line.scoreSource = 'tablebase';
+          continue;
+        }
+      }
+      line.scoreSource = 'engine';
+    }
 
     // Per line: a line takes its value from the database if the database has
     // its move, otherwise from Maia3. Maia3 runs only when some line needs it.
@@ -762,7 +848,10 @@ export class EvalPanel {
     if (probView !== 'off') spans.push(el('span', 'eval-col eval-col-circles'));
     header.append(...spans);
     const score = header.children[1];
-    score.append(label('Score'));
+    const scoreHeaderWrap = el('span', 'eval-score-wrap');
+    scoreHeaderWrap.append(label('Score'));
+    scoreHeaderWrap.append(el('span', 'eval-source-slot'));
+    score.append(scoreHeaderWrap);
     if (resultsView !== 'off') {
       const wdl = header.querySelector('.eval-col-wdl');
       const labelText =
@@ -866,7 +955,11 @@ export class EvalPanel {
     const primary = el('div', 'eval-primary');
     const items = [
       el('span', 'eval-skeleton eval-skeleton-move'),
-      el('span', 'eval-skeleton eval-skeleton-score'),
+      (() => {
+        const wrap = el('span', 'eval-score-wrap');
+        wrap.append(el('span', 'eval-skeleton eval-skeleton-score'), el('span', 'eval-source-slot'));
+        return wrap;
+      })(),
     ];
     if (this.settings.resultsView !== 'off') items.push(placeholderWdl());
     if (this.settings.probView !== 'off') items.push(this.placeholderCirclesPair());
@@ -901,7 +994,10 @@ export class EvalPanel {
       text.dataset.pick = uci;
     }
     primary.append(moveEl);
-    primary.append(el('span', 'eval-score', formatScore(line.score, sideToMoveOf(fen))));
+    const scoreWrap = el('span', 'eval-score-wrap');
+    scoreWrap.append(el('span', 'eval-score', formatScore(line.score, sideToMoveOf(fen))));
+    scoreWrap.append(scoreSourceSlot(line.scoreSource || 'engine'));
+    primary.append(scoreWrap);
 
     const resultsView = this.settings.resultsView;
     const probView = this.settings.probView;
