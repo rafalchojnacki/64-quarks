@@ -1,6 +1,5 @@
 import { StockfishEngine } from './stockfish.js';
-import { loadMaia, maiaModelUrl, scoreMoves } from './maia.js';
-import { DSC_MODEL_URL, loadDsc, predictDsc } from './dsc.js';
+import { loadMaia, scoreMoves } from './maia.js';
 import {
   MIN_DB_GAMES,
   fetchMastersDatabase,
@@ -29,6 +28,7 @@ import {
 } from './format.js';
 import {
   LINE_COUNTS,
+  MASTER_RANGES,
   PROBABILITY_VIEWS,
   QUALITY_LEVELS,
   RESULT_VIEWS,
@@ -130,7 +130,7 @@ function databaseWdl(counts, mover) {
 // a line uses the database when the database has its move, otherwise Maia3's
 // value for that line. Each entry carries its own source ('lichess', 'masters'
 // or 'maia'), which decides the D/E badge. Null when no value exists at all.
-function columnValues({ fen, lines, peer, masters, maia, dsc }) {
+function columnValues({ fen, lines, peer, masters, maia }) {
   const mover = sideToMoveOf(fen);
   const hasPeer = (uci) => gamesOf(peer?.moves.get(uci)) > 0;
   const hasMasters = (uci) => gamesOf(masters?.moves.get(uci)) > 0;
@@ -177,11 +177,10 @@ function columnValues({ fen, lines, peer, masters, maia, dsc }) {
     if (masters && hasMasters(uci)) {
       return { source: 'masters', probability: mastersShare(uci), games: gamesOf(masters.moves.get(uci)) };
     }
-    const dscProbability = dsc?.moves instanceof Map ? dsc.moves.get(uci) : dsc?.moves?.[uci];
-    if (dscProbability !== null && dscProbability !== undefined) {
-      return { source: 'dsc', probability: dscProbability };
-    }
-    return null;
+    const estimate = maia?.moves[index];
+    return estimate?.probability !== null && estimate?.probability !== undefined
+      ? { source: 'maia', probability: estimate.probability }
+      : null;
   });
 
   // Circles are scaled against the most probable move. Database shares and Maia
@@ -196,7 +195,6 @@ function columnValues({ fen, lines, peer, masters, maia, dsc }) {
   const mastersTops = [
     masters ? Math.max(0, ...[...masters.moves.keys()].map(mastersShare)) : null,
     maia?.topProbability ?? null,
-    dsc?.topProbability ?? null,
   ].filter((value) => value !== null);
   const mastersTop = mastersTops.length ? Math.max(...mastersTops) : null;
 
@@ -232,10 +230,6 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
         : 'Estimated (Lichess token is not set in Settings).',
       'The value may be inaccurate. Maia3 is conditioned on a Lichess player rating and does not use the game\'s time control.',
     ];
-  } else if (source === 'dsc') {
-    slot.textContent = 'E';
-    slot.classList.add('eval-source-maia');
-    lines = ['Estimated by DSC-23M-FEN (master-focused).'];
   } else if (source === 'lichess' || source === 'masters') {
     const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'D');
     slot.append(glyph);
@@ -389,7 +383,11 @@ export class EvalPanel {
       Object.entries(QUALITY_LEVELS).map(([key, level]) => ({ value: key, label: level.label })),
       (value) => this.updateSettings({ quality: value }),
     );
-
+    this.masterGroup = segmentedGroup(
+      doc.getElementById('eval-master'),
+      MASTER_RANGES.map((range) => ({ value: range.value, label: range.label })),
+      (value) => this.updateSettings({ master: value }),
+    );
     this.probViewGroup = segmentedGroup(
       doc.getElementById('eval-prob-view'),
       PROBABILITY_VIEWS.map((view) => ({ value: view.value, label: view.label })),
@@ -587,6 +585,7 @@ export class EvalPanel {
   syncControls() {
     this.linesGroup.setValue(this.settings.lines);
     this.qualityGroup.setValue(this.settings.quality);
+    this.masterGroup.setValue(String(this.settings.master));
     this.probViewGroup.setValue(this.settings.probView);
     this.resultsViewGroup.setValue(this.settings.resultsView);
     this.previewInput.checked = this.settings.preview;
@@ -622,13 +621,17 @@ export class EvalPanel {
     }
 
     this.engine ??= new StockfishEngine();
-    const { lines: count, quality, rating, token } = this.settings;
+    const { lines: count, quality, rating, master, token } = this.settings;
 
     // Both engines are initialized before the search starts: Stockfish is started,
     // and the Maia3 model is downloaded and loaded (its progress is shown). Only then
     // does the search begin, so the first evaluation does not wait for Maia3 later.
     this.view = { state: 'loading', fen, lines: [], maia: null };
     this.render();
+    const maiaLoad = loadMaia((status) => this.onMaiaStatus(runId, status)).then(
+      () => null,
+      (error) => error,
+    );
 
     // Consult the tablebase first: when the position is resolved there, the
     // engine search is skipped entirely and its scores are used.
@@ -639,10 +642,6 @@ export class EvalPanel {
       tablebase = error;
     }
     if (runId !== this.runId) return;
-    // A tablebase response is only "resolved" when it actually scores every
-    // legal move. Syzygy may report a root outcome (e.g. a win) while leaving
-    // most moves "unknown" (as happens for positions with an immediate mate);
-    // those are not real tablebase positions and must be analysed by the engine.
     const tbUsableEarly =
       isTablebaseAvailable(tablebase) &&
       Array.isArray(tablebase?.moves) &&
@@ -659,6 +658,10 @@ export class EvalPanel {
         return;
       }
     }
+    // A Maia3 load failure does not stop the search; the Maia3 values are then missing.
+    const maiaLoadError = await maiaLoad;
+    if (runId !== this.runId) return;
+
     let result;
     if (tbUsableEarly) {
       const tbMoves = [...tablebase.moves].sort((a, b) => {
@@ -758,93 +761,33 @@ export class EvalPanel {
     // Masters results fall back to Maia WDL when the masters DB is missing a move.
     if (resultsView === 'masters' && needMasters) needPeerWdl = true;
     const needPeerProb = (probView === 'peers' || probView === 'both') && needPeerDbMissing;
-    const needMastersProb = false;
-    const needDscProb = (probView === 'masters' || probView === 'both') && needMasters;
+    const needMastersProb = (probView === 'masters' || probView === 'both') && needMasters;
 
     let maia = null;
-    let maiaError = null;
-    let dsc = null;
-    let dscError = null;
-    const needMaia = needPeerWdl || needPeerProb;
-    if (needMaia || needDscProb) {
-      const contentLength = async (url) => {
-        try {
-          const response = await fetch(url, { method: 'HEAD' });
-          return Number(response.headers.get('content-length') || 0);
-        } catch {
-          return 0;
-        }
-      };
-      const maiaTotal = needMaia ? await contentLength(maiaModelUrl()) : 0;
-      const dscTotal = needDscProb ? await contentLength(DSC_MODEL_URL) : 0;
-      const combinedTotal = maiaTotal + dscTotal;
-      let maiaLoaded = 0;
-      let dscLoaded = 0;
-
-      this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: { phase: 'download', loaded: 0, total: combinedTotal } };
-      this.render();
-
-      if (needMaia) {
-        try {
-          await loadMaia((status) => {
-            if (status.phase === 'download') maiaLoaded = status.loaded;
-            this.onMaiaStatus(runId, { phase: 'download', loaded: maiaLoaded, total: combinedTotal || maiaLoaded });
-          });
-          maiaLoaded = maiaTotal;
-          this.onMaiaStatus(runId, { phase: 'download', loaded: maiaLoaded, total: combinedTotal || maiaLoaded });
-        } catch (error) {
-          maiaError = error;
-        }
-        if (runId !== this.runId) return;
-      }
-      if (needDscProb) {
-        try {
-          await loadDsc((status) => {
-            if (status.phase === 'download') dscLoaded = status.loaded;
-            this.onMaiaStatus(runId, { phase: 'download', loaded: maiaTotal + dscLoaded, total: combinedTotal || maiaTotal + dscLoaded });
-          });
-          dscLoaded = dscTotal;
-          this.onMaiaStatus(runId, { phase: 'download', loaded: maiaTotal + dscLoaded, total: combinedTotal || maiaTotal + dscLoaded });
-        } catch (error) {
-          dscError = error;
-        }
-        if (runId !== this.runId) return;
-      }
-
-      // Hide the shared progress bar before scoring.
+    let maiaError = maiaLoadError;
+    if (!maiaError && (needPeerWdl || needPeerProb || needMastersProb)) {
       this.view = { ...this.view, maia: null };
       this.render();
-
-      if (needMaia && !maiaError) {
-        try {
-          maia = await this.scoreWithMaia({
-            runId,
-            fen,
-            lines: result.lines,
-            rating,
-            wantPeerWdl: needPeerWdl,
-            wantPeerProb: needPeerProb,
-            wantMasters: false,
-          });
-        } catch (error) {
-          maiaError = error;
-        }
-        if (runId !== this.runId) return;
+      try {
+        maia = await this.scoreWithMaia({
+          runId,
+          fen,
+          lines: result.lines,
+          rating,
+          master,
+          wantPeerWdl: needPeerWdl,
+          wantPeerProb: needPeerProb,
+          wantMasters: needMastersProb,
+        });
+      } catch (error) {
+        maiaError = error;
       }
-      if (needDscProb && !dscError) {
-        try {
-          dsc = await predictDsc({ fen, ratings: [2578], timeControl: 'classical', ratingSystem: 'fide', venue: 'otb' });
-        } catch (error) {
-          dscError = error;
-        }
-        if (runId !== this.runId) return;
-      }
+      if (runId !== this.runId) return;
     }
 
     const messages = [...notes];
-    if (dscError) messages.push(`DSC failed: ${dscError.message}`);
     if (maiaError) messages.push(`Maia3 failed: ${maiaError.message}`);
-    const scored = columnValues({ fen, lines: result.lines, peer: fetched.peer, masters: fetched.masters, maia, dsc });
+    const scored = columnValues({ fen, lines: result.lines, peer: fetched.peer, masters: fetched.masters, maia });
     this.view = { state: 'done', fen, lines: result.lines, scored, message: messages.join(' ') };
     // Results with a failed source are not cached, so the next visit retries them.
     if (!messages.length) this.remember(key, result.lines, scored);
@@ -871,13 +814,14 @@ export class EvalPanel {
     return { peer, masters, notes };
   }
 
-  async scoreWithMaia({ runId, fen, lines, rating, wantPeerWdl, wantPeerProb, wantMasters }) {
+  async scoreWithMaia({ runId, fen, lines, rating, master, wantPeerWdl, wantPeerProb, wantMasters }) {
     await loadMaia((status) => this.onMaiaStatus(runId, status));
     const moves = lines.map((line) => {
       const uci = line.pv[0];
       return { uci, childFen: uci ? applyUci(fen, uci) : null };
     });
-    return scoreMoves({ fen, moves, rating, ratings: [], wdl: wantPeerWdl, peerProbability: wantPeerProb, probabilities: wantMasters });
+    const ratings = MASTER_RANGES.find((range) => range.value === master).ratings;
+    return scoreMoves({ fen, moves, rating, ratings, wdl: wantPeerWdl, peerProbability: wantPeerProb, probabilities: wantMasters });
   }
 
   // Called by loadMaia while the model downloads or prepares. Updates the
