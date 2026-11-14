@@ -2021,14 +2021,13 @@ main {
 }
 
 .eval-score {
-  min-width: 4.5em;
   color: var(--eval-tint);
 }
 
 .eval-score-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   min-width: 4.5em;
 }
 
@@ -2080,7 +2079,7 @@ main {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   width: 114px;
 }
 
