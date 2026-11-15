@@ -11,9 +11,9 @@ export const QUALITY_LEVELS = {
 // Maia3 strength levels: 600 to 2600 in steps of 100.
 export const RATINGS = Array.from({ length: 21 }, (_, i) => 600 + i * 100);
 
-// Which move-probability lines are shown in the squashed Peers/Masters column.
-// 'off' hides the probability column entirely.
-export const PROBABILITY_VIEWS = [
+// Which play-rate lines are shown in the squashed Peers/Masters column.
+// 'off' hides the play-rate column entirely.
+export const PLAY_RATE_VIEWS = [
   { value: 'masters', label: 'Masters' },
   { value: 'peers', label: 'Peers' },
   { value: 'both', label: 'Both' },
@@ -33,7 +33,7 @@ export const RESULT_VIEWS = [
 ];
 
 // token is an optional Lichess API token. Empty means anonymous access.
-export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, probView: 'masters', resultsView: 'peers', preview: false, token: '', externalData: 'off' };
+export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, playRateView: 'masters', resultsView: 'peers', preview: false, token: '', externalData: 'off' };
 
 const STORAGE_KEY = '64-quarks.eval';
 
@@ -60,14 +60,14 @@ export function normalizeSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   const lines = Number(source.lines);
   const rating = Number(source.rating);
-  const probView = source.probView;
+  const playRateView = source.playRateView ?? source.probView;
   const resultsView = source.resultsView;
   const externalData = source.externalData;
   return {
     lines: LINE_COUNTS.includes(lines) ? lines : DEFAULT_SETTINGS.lines,
     quality: Object.hasOwn(QUALITY_LEVELS, source.quality) ? source.quality : DEFAULT_SETTINGS.quality,
     rating: RATINGS.includes(rating) ? rating : DEFAULT_SETTINGS.rating,
-    probView: PROBABILITY_VIEWS.some((view) => view.value === probView) ? probView : DEFAULT_SETTINGS.probView,
+    playRateView: PLAY_RATE_VIEWS.some((view) => view.value === playRateView) ? playRateView : DEFAULT_SETTINGS.playRateView,
     resultsView: RESULT_VIEWS.some((view) => view.value === resultsView) ? resultsView : DEFAULT_SETTINGS.resultsView,
     preview: source.preview === true,
     token: typeof source.token === 'string' ? source.token.trim() : DEFAULT_SETTINGS.token,

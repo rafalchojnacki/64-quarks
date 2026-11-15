@@ -29,7 +29,7 @@ import {
 } from './format.js';
 import {
   LINE_COUNTS,
-  PROBABILITY_VIEWS,
+  PLAY_RATE_VIEWS,
   QUALITY_LEVELS,
   RESULT_VIEWS,
   EXTERNAL_DATA_MODES,
@@ -79,7 +79,7 @@ function columnHeader() {
   const [, score, wdl, circles] = header.children;
   score.append(label('Score'));
   wdl.append(label('Peer results'));
-  circles.append(label('Peers / Masters'));
+  circles.append(label('Play rate'));
   return header;
 }
 
@@ -400,10 +400,10 @@ export class EvalPanel {
       (value) => this.updateSettings({ quality: value }),
     );
 
-    this.probViewGroup = segmentedGroup(
+    this.playRateViewGroup = segmentedGroup(
       doc.getElementById('eval-prob-view'),
-      PROBABILITY_VIEWS.map((view) => ({ value: view.value, label: view.label })),
-      (value) => this.updateSettings({ probView: value }),
+      PLAY_RATE_VIEWS.map((view) => ({ value: view.value, label: view.label })),
+      (value) => this.updateSettings({ playRateView: value }),
     );
     this.resultsViewGroup = segmentedGroup(
       doc.getElementById('eval-results-view'),
@@ -672,7 +672,7 @@ export class EvalPanel {
   syncControls() {
     this.linesGroup.setValue(this.settings.lines);
     this.qualityGroup.setValue(this.settings.quality);
-    this.probViewGroup.setValue(this.settings.probView);
+    this.playRateViewGroup.setValue(this.settings.playRateView);
     this.resultsViewGroup.setValue(this.settings.resultsView);
     this.externalDataGroup.setValue(this.settings.externalData);
     this.previewInput.checked = this.settings.preview;
@@ -843,15 +843,15 @@ export class EvalPanel {
     const peer = fetched.peer;
     const masters = fetched.masters;
     const resultsView = this.settings.resultsView;
-    const probView = this.settings.probView;
+    const playRateView = this.settings.playRateView;
     const needMasters = !masters || lineUcis.some((uci) => !uci || gamesOf(masters.moves.get(uci)) === 0);
     const needPeerDbMissing = !peer || lineUcis.some((uci) => !uci || gamesOf(peer.moves.get(uci)) === 0);
     let needPeerWdl = needPeerDbMissing;
     // Masters results fall back to Maia WDL when the masters DB is missing a move.
     if (resultsView === 'masters' && needMasters) needPeerWdl = true;
-    const needPeerProb = (probView === 'peers' || probView === 'both') && needPeerDbMissing;
+    const needPeerProb = (playRateView === 'peers' || playRateView === 'both') && needPeerDbMissing;
     const needMastersProb = false;
-    const needDscProb = (probView === 'masters' || probView === 'both') && needMasters;
+    const needDscProb = (playRateView === 'masters' || playRateView === 'both') && needMasters;
 
     let maia = null;
     let maiaError = null;
@@ -1059,13 +1059,13 @@ export class EvalPanel {
     header.setAttribute('aria-hidden', 'true');
     const label = (text) => el('span', 'eval-col-label', text);
     const resultsView = this.settings.resultsView;
-    const probView = this.settings.probView;
+    const playRateView = this.settings.playRateView;
     const spans = [
       el('span', 'eval-col eval-col-move'),
       el('span', 'eval-col eval-col-score'),
     ];
     if (resultsView !== 'off') spans.push(el('span', 'eval-col eval-col-wdl'));
-    if (probView !== 'off') spans.push(el('span', 'eval-col eval-col-circles'));
+    if (playRateView !== 'off') spans.push(el('span', 'eval-col eval-col-circles'));
     header.append(...spans);
     const score = header.children[1];
     const scoreHeaderWrap = el('span', 'eval-score-wrap');
@@ -1078,11 +1078,9 @@ export class EvalPanel {
         resultsView === 'peers' ? 'Peer results' : resultsView === 'masters' ? 'Masters results' : 'Engine results';
       wdl.append(label(labelText));
     }
-    if (probView !== 'off') {
+    if (playRateView !== 'off') {
       const circles = header.querySelector('.eval-col-circles');
-      const labelText =
-        probView === 'both' ? 'Peers / Masters' : probView === 'peers' ? 'Peers' : 'Masters';
-      circles.append(label(labelText));
+      circles.append(label('Play rate'));
     }
     return header;
   }
@@ -1189,7 +1187,7 @@ export class EvalPanel {
       })(),
     ];
     if (this.settings.resultsView !== 'off') items.push(placeholderWdl());
-    if (this.settings.probView !== 'off') items.push(this.placeholderCirclesPair());
+    if (this.settings.playRateView !== 'off') items.push(this.placeholderCirclesPair());
     primary.append(...items);
     row.append(primary, el('div', 'eval-skeleton eval-skeleton-cont'));
     return row;
@@ -1227,7 +1225,7 @@ export class EvalPanel {
     primary.append(scoreWrap);
 
     const resultsView = this.settings.resultsView;
-    const probView = this.settings.probView;
+    const playRateView = this.settings.playRateView;
     if (resultsView !== 'off') {
       if (complete) {
         let column = scored.peer;
@@ -1252,7 +1250,7 @@ export class EvalPanel {
       }
     }
 
-    if (probView !== 'off') {
+    if (playRateView !== 'off') {
       primary.append(this.buildCirclesPair(
         scored?.peers, scored?.peers.moves[index],
         scored?.masters, scored?.masters.moves[index],
@@ -1356,7 +1354,7 @@ export class EvalPanel {
   // Two probability lines stacked into one column: peers (top) and masters (bottom).
   buildCirclesPair(peerColumn, peerEntry, masterColumn, masterEntry, complete) {
     const wrap = el('div', 'eval-circles-pair');
-    const view = this.settings.probView;
+    const view = this.settings.playRateView;
     if (view === 'peers' || view === 'both') {
       wrap.append(this.buildCircles(peerColumn, peerEntry, complete, 'Lichess'));
     }
@@ -1368,7 +1366,7 @@ export class EvalPanel {
 
   placeholderCirclesPair() {
     const wrap = el('div', 'eval-circles-pair');
-    const view = this.settings.probView;
+    const view = this.settings.playRateView;
     if (view === 'peers' || view === 'both') wrap.append(placeholderCircles());
     if (view === 'masters' || view === 'both') wrap.append(placeholderCircles());
     return wrap;
