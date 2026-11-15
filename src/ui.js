@@ -32,5 +32,11 @@ export function segmentedGroup(container, options, onSelect) {
         button.setAttribute('aria-pressed', String(button.dataset.value === String(value)));
       });
     },
+    setDisabled(disabled) {
+      container.classList.toggle('is-disabled', disabled);
+      buttons.forEach((button) => {
+        button.disabled = disabled;
+      });
+    },
   };
 }

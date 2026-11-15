@@ -1883,6 +1883,16 @@ main {
   outline-offset: 1px;
 }
 
+.eval-seg.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.settings-item.is-disabled .settings-item-title,
+.settings-item.is-disabled .settings-item-desc {
+  opacity: 0.5;
+}
+
 .eval-dropdown {
   position: relative;
   justify-self: stretch;

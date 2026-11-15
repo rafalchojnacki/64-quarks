@@ -365,7 +365,9 @@ export class EvalPanel {
     this.tokenClear = doc.getElementById('eval-token-clear');
     this.tokenStatus = doc.getElementById('eval-token-status');
     this.externalDataDesc = doc.getElementById('eval-external-data-desc');
-    this.externalDataWarning = doc.getElementById('eval-external-data-warning');    this.section = doc.getElementById('eval-section');
+    this.externalDataWarning = doc.getElementById('eval-external-data-warning');
+    this.externalDataItem = this.externalDataDesc?.closest('.settings-item');
+    this.section = doc.getElementById('eval-section');
     this.body = doc.getElementById('eval-body');
 
     this.settings = loadSettings();
@@ -548,10 +550,13 @@ export class EvalPanel {
     if (this.enabled) this.run();
   }
 
+  // Without a Lichess token the setting is read-only and the warning explains why.
   updateExternalDataDesc() {
     if (!this.externalDataWarning) return;
-    const show = !this.settings.token && this.settings.externalData !== 'off';
-    this.externalDataWarning.hidden = !show;
+    const locked = !this.settings.token;
+    this.externalDataWarning.hidden = !locked;
+    this.externalDataGroup.setDisabled(locked);
+    this.externalDataItem?.classList.toggle('is-disabled', locked);
   }
 
   toggleEnabled() {
