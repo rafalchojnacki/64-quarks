@@ -1038,6 +1038,7 @@ function resetGame() {
   nextNodeId = 1;
   reindexTree();
   resetMoveSelection();
+  evalPanel.startEvaluationSession();
   refresh();
 }
 
@@ -1161,6 +1162,7 @@ function importFen(fen) {
   nextNodeId = 1;
   reindexTree();
   resetMoveSelection();
+  evalPanel.startEvaluationSession();
   refresh();
   return true;
 }
@@ -1224,6 +1226,7 @@ function importPgn(pgn) {
     nextNodeId = importedNodeId;
     reindexTree();
     resetMoveSelection();
+    evalPanel.startEvaluationSession();
     refresh();
     return true;
   } catch {

@@ -4,7 +4,12 @@ import { swapWdl } from './format.js';
 // Hosted on Hugging Face rather than bundled: the ~88 MiB model exceeds
 // Cloudflare Pages' 25 MiB per-file limit.
 export const MAIA_MODEL_URL =
-  'https://huggingface.co/cemoss17/maia3-onnx/resolve/main/maia3_23m.onnx';
+  'https://pub-30bb575c84bc40baa6d228c2660de2ad.r2.dev/maia3_23m.onnx';
+
+export function maiaModelUrl() {
+  return MAIA_MODEL_URL;
+}
+
 let loading = null;
 let statusListener = null;
 

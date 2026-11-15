@@ -925,6 +925,16 @@ main {
   color: var(--glyph-tint-2) !important;
 }
 
+.eval-external-data-warning {
+  display: none;
+  margin-top: 4px;
+  color: var(--glyph-tint-2) !important;
+  font-size: 12px;
+}
+.eval-external-data-warning:not([hidden]) {
+  display: block;
+}
+
 .import-dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -1967,6 +1977,24 @@ main {
 
 .eval-error {
   color: var(--glyph-tint-4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eval-error-text {
+  flex: 1;
+}
+
+.eval-error-hide {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
 }
 
 .eval-empty-inline {
@@ -2233,6 +2261,26 @@ main {
 }
 
 .eval-token-check:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.eval-token-clear {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.eval-token-clear:hover:not(:disabled) {
+  background: var(--hover-bg);
+}
+
+.eval-token-clear:disabled {
   opacity: 0.5;
   cursor: default;
 }

@@ -1,5 +1,6 @@
 import { StockfishEngine } from './stockfish.js';
-import { loadMaia, scoreMoves } from './maia.js';
+import { loadMaia, maiaModelUrl, scoreMoves } from './maia.js';
+import { DSC_MODEL_URL, loadDsc, predictDsc } from './dsc.js';
 import {
   MIN_DB_GAMES,
   fetchMastersDatabase,
@@ -28,10 +29,10 @@ import {
 } from './format.js';
 import {
   LINE_COUNTS,
-  MASTER_RANGES,
   PROBABILITY_VIEWS,
   QUALITY_LEVELS,
   RESULT_VIEWS,
+  EXTERNAL_DATA_MODES,
   RATINGS,
   loadSettings,
   normalizeSettings,
@@ -130,7 +131,7 @@ function databaseWdl(counts, mover) {
 // a line uses the database when the database has its move, otherwise Maia3's
 // value for that line. Each entry carries its own source ('lichess', 'masters'
 // or 'maia'), which decides the D/E badge. Null when no value exists at all.
-function columnValues({ fen, lines, peer, masters, maia }) {
+function columnValues({ fen, lines, peer, masters, maia, dsc }) {
   const mover = sideToMoveOf(fen);
   const hasPeer = (uci) => gamesOf(peer?.moves.get(uci)) > 0;
   const hasMasters = (uci) => gamesOf(masters?.moves.get(uci)) > 0;
@@ -177,10 +178,11 @@ function columnValues({ fen, lines, peer, masters, maia }) {
     if (masters && hasMasters(uci)) {
       return { source: 'masters', probability: mastersShare(uci), games: gamesOf(masters.moves.get(uci)) };
     }
-    const estimate = maia?.moves[index];
-    return estimate?.probability !== null && estimate?.probability !== undefined
-      ? { source: 'maia', probability: estimate.probability }
-      : null;
+    const dscProbability = dsc?.moves instanceof Map ? dsc.moves.get(uci) : dsc?.moves?.[uci];
+    if (dscProbability !== null && dscProbability !== undefined) {
+      return { source: 'dsc', probability: dscProbability };
+    }
+    return null;
   });
 
   // Circles are scaled against the most probable move. Database shares and Maia
@@ -195,6 +197,7 @@ function columnValues({ fen, lines, peer, masters, maia }) {
   const mastersTops = [
     masters ? Math.max(0, ...[...masters.moves.keys()].map(mastersShare)) : null,
     maia?.topProbability ?? null,
+    dsc?.topProbability ?? null,
   ].filter((value) => value !== null);
   const mastersTop = mastersTops.length ? Math.max(...mastersTops) : null;
 
@@ -216,8 +219,9 @@ function gamesOf(counts) {
 // place. "D" marks a value from the database, "E" one estimated by Maia3 (used
 // when the database had too few games). Empty when no value exists.
 // The tooltip is a custom one (see showTip).
-function sourceSlot(source, databaseName, games = null, hasToken = true) {
+function sourceSlot(source, databaseName, games = null, hasToken = true, databaseEnabled = true) {
   const slot = el('span', 'eval-source-slot');
+  if (!databaseEnabled) return slot;
   let lines;
   if (source === 'maia') {
     const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'E');
@@ -226,10 +230,14 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
     // Without a token the database is never queried, so say that instead.
     lines = [
       hasToken
-        ? 'Estimated (not enough games in the database).'
-        : 'Estimated (Lichess token is not set in Settings).',
-      'The value may be inaccurate. Maia3 is conditioned on a Lichess player rating and does not use the game\'s time control.',
+        ? 'Estimated (not enough games in the database)'
+        : 'Estimated (Lichess token is not set in Settings)',
     ];
+  } else if (source === 'dsc') {
+    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'E');
+    slot.append(glyph);
+    slot.classList.add('eval-source-maia');
+    lines = ['Estimated by DSC-23M-FEN (master-focused).'];
   } else if (source === 'lichess' || source === 'masters') {
     const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'D');
     slot.append(glyph);
@@ -253,8 +261,9 @@ function sourceSlot(source, databaseName, games = null, hasToken = true) {
 
 // Indicator for the Score column: T when the score comes from the tablebase,
 // E when it comes from the engine evaluation.
-function scoreSourceSlot(source) {
+function scoreSourceSlot(source, tablebaseEnabled = true) {
   const slot = el('span', 'eval-source-slot');
+  if (!tablebaseEnabled) return slot;
   let lines;
   if (source === 'tablebase') {
     const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'T');
@@ -353,13 +362,18 @@ export class EvalPanel {
     this.previewInput = doc.getElementById('eval-preview');
     this.tokenInput = doc.getElementById('eval-token');
     this.tokenCheck = doc.getElementById('eval-token-check');
+    this.tokenClear = doc.getElementById('eval-token-clear');
     this.tokenStatus = doc.getElementById('eval-token-status');
-    this.section = doc.getElementById('eval-section');
+    this.externalDataDesc = doc.getElementById('eval-external-data-desc');
+    this.externalDataWarning = doc.getElementById('eval-external-data-warning');    this.section = doc.getElementById('eval-section');
     this.body = doc.getElementById('eval-body');
 
     this.settings = loadSettings();
     this.enabled = false;
     this.fen = null;
+    // Errors the user has dismissed for the current evaluation session. Ephemeral:
+    // cleared when a new session starts (evaluation toggled on or a new game loaded).
+    this.hiddenErrors = new Set();
     // Lichess speed of the open game (see setFen).
     this.speed = gameSpeed(null);
     this.engine = null;
@@ -383,11 +397,7 @@ export class EvalPanel {
       Object.entries(QUALITY_LEVELS).map(([key, level]) => ({ value: key, label: level.label })),
       (value) => this.updateSettings({ quality: value }),
     );
-    this.masterGroup = segmentedGroup(
-      doc.getElementById('eval-master'),
-      MASTER_RANGES.map((range) => ({ value: range.value, label: range.label })),
-      (value) => this.updateSettings({ master: value }),
-    );
+
     this.probViewGroup = segmentedGroup(
       doc.getElementById('eval-prob-view'),
       PROBABILITY_VIEWS.map((view) => ({ value: view.value, label: view.label })),
@@ -397,6 +407,21 @@ export class EvalPanel {
       doc.getElementById('eval-results-view'),
       RESULT_VIEWS.map((view) => ({ value: view.value, label: view.label })),
       (value) => this.updateSettings({ resultsView: value }),
+    );
+    this.externalDataGroup = segmentedGroup(
+      doc.getElementById('eval-external-data'),
+      EXTERNAL_DATA_MODES.map((value) => ({
+        value,
+        label:
+          value === 'off'
+            ? 'Off'
+            : value === 'databases'
+              ? 'Databases'
+              : value === 'tablebases'
+                ? 'Tablebases'
+                : 'Both',
+      })),
+      (value) => this.updateSettings({ externalData: value }),
     );
     this.ratingItems = RATINGS.map((rating) => {
       const item = el('li', 'eval-dd-item', String(rating));
@@ -434,13 +459,17 @@ export class EvalPanel {
     this.previewInput.addEventListener('change', () => this.updateSettings({ preview: this.previewInput.checked }));
     // The token is applied only after Check validates it (see checkToken).
     this.tokenCheck.addEventListener('click', () => this.checkToken());
+    this.tokenClear?.addEventListener('click', () => this.clearToken());
     this.tokenInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
         this.checkToken();
       }
     });
-    this.tokenInput.addEventListener('input', () => this.setTokenStatus(null));
+    this.tokenInput.addEventListener('input', () => {
+      this.setTokenStatus(null);
+      this.updateTokenButtons();
+    });
 
     this.settingsBtn.addEventListener('click', () => this.toggleSettingsMenu());
     window.addEventListener('resize', () => {
@@ -498,6 +527,14 @@ export class EvalPanel {
     this.settingsBtn.setAttribute('aria-expanded', 'false');
   }
 
+  get databaseEnabled() {
+    return this.settings.externalData === 'databases' || this.settings.externalData === 'both';
+  }
+
+  get tablebaseEnabled() {
+    return this.settings.externalData === 'tablebases' || this.settings.externalData === 'both';
+  }
+
   // Called from the main board refresh; a no-op when neither the position nor the
   // game's time control changed. timeControl is the PGN TimeControl value of the
   // open game (or null if unknown); it selects the Lichess speed for the peer
@@ -511,14 +548,44 @@ export class EvalPanel {
     if (this.enabled) this.run();
   }
 
+  updateExternalDataDesc() {
+    if (!this.externalDataWarning) return;
+    const show = !this.settings.token && this.settings.externalData !== 'off';
+    this.externalDataWarning.hidden = !show;
+  }
+
   toggleEnabled() {
     this.setEnabled(!this.enabled);
+  }
+
+  // Begins a new evaluation session: clears any errors the user dismissed earlier.
+  startEvaluationSession() {
+    this.hiddenErrors = new Set();
+  }
+
+  // Hides one error message for the rest of the current evaluation session.
+  hideError(message) {
+    this.hiddenErrors.add(message);
+    this.render();
+  }
+
+  // Renders a single dismissible evaluation error line.
+  errorLine(message) {
+    const line = el('p', 'eval-empty eval-error');
+    const text = el('span', 'eval-error-text', message);
+    const hide = el('button', 'eval-error-hide', 'Hide');
+    hide.type = 'button';
+    hide.title = 'Hide this error for this evaluation session';
+    hide.addEventListener('click', () => this.hideError(message));
+    line.append(text, hide);
+    return line;
   }
 
   setEnabled(value) {
     this.enabled = Boolean(value);
     this.toggle.checked = this.enabled;
     if (this.enabled) {
+      this.startEvaluationSession();
       this.run();
     } else {
       this.runId += 1;
@@ -559,16 +626,31 @@ export class EvalPanel {
       this.setTokenStatus('error', error.message);
       return;
     } finally {
-      this.tokenCheck.disabled = false;
+      this.updateTokenButtons();
     }
     this.setTokenStatus('ok', 'Token accepted');
     this.updateSettings({ token });
+  }
+
+  // Removes the stored token without validating.
+  clearToken() {
+    this.tokenInput.value = '';
+    this.setTokenStatus(null);
+    this.updateSettings({ token: '' });
   }
 
   // kind: 'pending' | 'ok' | 'error' | null (no message).
   setTokenStatus(kind, message = '') {
     this.tokenStatus.textContent = message;
     this.tokenStatus.dataset.kind = kind ?? '';
+  }
+
+  // Apply is enabled only after the input differs from the stored token; Clear is
+  // enabled only when a token is currently stored.
+  updateTokenButtons() {
+    const dirty = this.tokenInput.value.trim() !== this.settings.token;
+    this.tokenCheck.disabled = !dirty;
+    if (this.tokenClear) this.tokenClear.disabled = !this.settings.token;
   }
 
   updateSettings(patch) {
@@ -585,12 +667,14 @@ export class EvalPanel {
   syncControls() {
     this.linesGroup.setValue(this.settings.lines);
     this.qualityGroup.setValue(this.settings.quality);
-    this.masterGroup.setValue(String(this.settings.master));
     this.probViewGroup.setValue(this.settings.probView);
     this.resultsViewGroup.setValue(this.settings.resultsView);
+    this.externalDataGroup.setValue(this.settings.externalData);
     this.previewInput.checked = this.settings.preview;
     this.tokenInput.value = this.settings.token;
     this.tokenInput.placeholder = this.settings.token ? '' : 'Not set';
+    this.updateTokenButtons();
+    this.updateExternalDataDesc();
     this.ratingLabel.textContent = String(this.settings.rating);
     this.ratingItems.forEach((item) => {
       const selected = item.dataset.value === String(this.settings.rating);
@@ -615,33 +699,35 @@ export class EvalPanel {
       this.engine?.cancel();
       this.cache.delete(key);
       this.cache.set(key, cached);
-      this.view = { state: 'done', fen, lines: cached.lines, scored: cached.scored };
+      this.view = { state: 'done', fen, lines: cached.lines, scored: cached.scored, errors: [] };
       this.render();
       return;
     }
 
     this.engine ??= new StockfishEngine();
-    const { lines: count, quality, rating, master, token } = this.settings;
+    const { lines: count, quality, rating, token } = this.settings;
 
     // Both engines are initialized before the search starts: Stockfish is started,
     // and the Maia3 model is downloaded and loaded (its progress is shown). Only then
     // does the search begin, so the first evaluation does not wait for Maia3 later.
-    this.view = { state: 'loading', fen, lines: [], maia: null };
+    this.view = { state: 'loading', fen, lines: [], maia: null, errors: [] };
     this.render();
-    const maiaLoad = loadMaia((status) => this.onMaiaStatus(runId, status)).then(
-      () => null,
-      (error) => error,
-    );
 
     // Consult the tablebase first: when the position is resolved there, the
     // engine search is skipped entirely and its scores are used.
     let tablebase = null;
-    try {
-      tablebase = await fetchTablebase(fen);
-    } catch (error) {
-      tablebase = error;
+    if (this.tablebaseEnabled) {
+      try {
+        tablebase = await fetchTablebase(fen);
+      } catch (error) {
+        tablebase = error;
+      }
     }
     if (runId !== this.runId) return;
+    // A tablebase response is only "resolved" when it actually scores every
+    // legal move. Syzygy may report a root outcome (e.g. a win) while leaving
+    // most moves "unknown" (as happens for positions with an immediate mate);
+    // those are not real tablebase positions and must be analysed by the engine.
     const tbUsableEarly =
       isTablebaseAvailable(tablebase) &&
       Array.isArray(tablebase?.moves) &&
@@ -653,15 +739,11 @@ export class EvalPanel {
         await this.engine.ready;
       } catch (error) {
         if (runId !== this.runId) return;
-        this.view = { state: 'error', fen, message: `Engine failed: ${error.message}` };
+        this.view = { state: 'error', fen, message: `Engine failed: ${error.message}`, errors: [`Engine failed: ${error.message}`] };
         this.render();
         return;
       }
     }
-    // A Maia3 load failure does not stop the search; the Maia3 values are then missing.
-    const maiaLoadError = await maiaLoad;
-    if (runId !== this.runId) return;
-
     let result;
     if (tbUsableEarly) {
       const tbMoves = [...tablebase.moves].sort((a, b) => {
@@ -683,7 +765,7 @@ export class EvalPanel {
         return line;
       });
       result = { lines, cancelled: false };
-      this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null };
+      this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null, errors: [] };
       this.render();
     } else {
       this.view = { state: 'searching', fen, lines: [], progress: 0 };
@@ -706,19 +788,19 @@ export class EvalPanel {
     }
     if (runId !== this.runId) return;
     if (result.error) {
-      this.view = { state: 'error', fen, message: `Engine failed: ${result.error.message}` };
+      this.view = { state: 'error', fen, message: `Engine failed: ${result.error.message}`, errors: [`Engine failed: ${result.error.message}`] };
       this.render();
       return;
     }
     if (result.cancelled) return;
 
     if (!result.lines.length) {
-      this.view = { state: 'done', fen, lines: [], scored: null, message: 'No legal moves.' };
+      this.view = { state: 'done', fen, lines: [], scored: null, message: 'No legal moves.', errors: [] };
       this.render();
       return;
     }
 
-    this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null };
+    this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null, errors: [] };
     this.render();
 
     const fetched = await this.fetchDatabases(fen, rating, this.speed, token);
@@ -727,10 +809,12 @@ export class EvalPanel {
 
     // Tablebase: when the position is resolved by the tablebase, its score
     // replaces the engine's score for every candidate move.
-    try {
-      tablebase = await fetchTablebase(fen);
-    } catch (error) {
-      notes.push(`Tablebase unavailable: ${error.message}.`);
+    if (this.tablebaseEnabled) {
+      try {
+        tablebase = await fetchTablebase(fen);
+      } catch (error) {
+        notes.push(`Tablebase unavailable: ${error.message}.`);
+      }
     }
     if (runId !== this.runId) return;
     const tbUsable = isTablebaseAvailable(tablebase);
@@ -761,34 +845,141 @@ export class EvalPanel {
     // Masters results fall back to Maia WDL when the masters DB is missing a move.
     if (resultsView === 'masters' && needMasters) needPeerWdl = true;
     const needPeerProb = (probView === 'peers' || probView === 'both') && needPeerDbMissing;
-    const needMastersProb = (probView === 'masters' || probView === 'both') && needMasters;
+    const needMastersProb = false;
+    const needDscProb = (probView === 'masters' || probView === 'both') && needMasters;
 
     let maia = null;
-    let maiaError = maiaLoadError;
-    if (!maiaError && (needPeerWdl || needPeerProb || needMastersProb)) {
+    let maiaError = null;
+    let dsc = null;
+    let dscError = null;
+    const needMaia = needPeerWdl || needPeerProb;
+    if (needMaia || needDscProb) {
+      const contentLength = async (url) => {
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          return Number(response.headers.get('content-length') || 0);
+        } catch {
+          return 0;
+        }
+      };
+      const maiaTotal = needMaia ? await contentLength(maiaModelUrl()) : 0;
+      const dscTotal = needDscProb ? await contentLength(DSC_MODEL_URL) : 0;
+      const combinedTotal = maiaTotal + dscTotal;
+      let maiaLoaded = 0;
+      let dscLoaded = 0;
+
+      const isCached = async (url, cacheName) => {
+        if (typeof caches === 'undefined') return false;
+        try {
+          const cache = await caches.open(cacheName);
+          return Boolean(await cache.match(url));
+        } catch {
+          return false;
+        }
+      };
+      const maiaCached = needMaia ? await isCached(maiaModelUrl(), 'maia3-js') : true;
+      const dscCached = needDscProb ? await isCached(DSC_MODEL_URL, '64-quarks-models') : true;
+      const showDownloadProgress = !(maiaCached && dscCached);
+
+      if (showDownloadProgress) {
+        this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: { phase: 'download', loaded: 0, total: combinedTotal }, errors: [] };
+        this.render();
+      } else {
+        this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null, errors: [] };
+        this.render();
+      }
+
+      // Download both models concurrently, reporting their combined progress through
+      // the single shared progress bar.
+      const downloadTasks = [];
+      if (needMaia) {
+        downloadTasks.push((async () => {
+          try {
+            await loadMaia((status) => {
+              if (!showDownloadProgress) return;
+              if (status.phase === 'download') maiaLoaded = status.loaded;
+              this.onMaiaStatus(runId, {
+                phase: 'download',
+                loaded: maiaLoaded + dscLoaded,
+                total: combinedTotal || maiaLoaded + dscLoaded,
+              });
+            });
+            if (showDownloadProgress) {
+              maiaLoaded = maiaTotal;
+              this.onMaiaStatus(runId, {
+                phase: 'download',
+                loaded: maiaLoaded + dscLoaded,
+                total: combinedTotal || maiaLoaded + dscLoaded,
+              });
+            }
+          } catch (error) {
+            maiaError = error;
+          }
+        })());
+      }
+      if (needDscProb) {
+        downloadTasks.push((async () => {
+          try {
+            await loadDsc((status) => {
+              if (!showDownloadProgress) return;
+              if (status.phase === 'download') dscLoaded = status.loaded;
+              this.onMaiaStatus(runId, {
+                phase: 'download',
+                loaded: maiaLoaded + dscLoaded,
+                total: combinedTotal || maiaLoaded + dscLoaded,
+              });
+            });
+            if (showDownloadProgress) {
+              dscLoaded = dscTotal;
+              this.onMaiaStatus(runId, {
+                phase: 'download',
+                loaded: maiaLoaded + dscLoaded,
+                total: combinedTotal || maiaLoaded + dscLoaded,
+              });
+            }
+          } catch (error) {
+            dscError = error;
+          }
+        })());
+      }
+      await Promise.all(downloadTasks);
+      if (runId !== this.runId) return;
+
+      // Hide the shared progress bar before scoring.
       this.view = { ...this.view, maia: null };
       this.render();
-      try {
-        maia = await this.scoreWithMaia({
-          runId,
-          fen,
-          lines: result.lines,
-          rating,
-          master,
-          wantPeerWdl: needPeerWdl,
-          wantPeerProb: needPeerProb,
-          wantMasters: needMastersProb,
-        });
-      } catch (error) {
-        maiaError = error;
+
+      if (needMaia && !maiaError) {
+        try {
+          maia = await this.scoreWithMaia({
+            runId,
+            fen,
+            lines: result.lines,
+            rating,
+            wantPeerWdl: needPeerWdl,
+            wantPeerProb: needPeerProb,
+            wantMasters: false,
+          });
+        } catch (error) {
+          maiaError = error;
+        }
+        if (runId !== this.runId) return;
       }
-      if (runId !== this.runId) return;
+      if (needDscProb && !dscError) {
+        try {
+          dsc = await predictDsc({ fen, ratings: [2578], timeControl: 'classical', ratingSystem: 'fide', venue: 'otb' });
+        } catch (error) {
+          dscError = error;
+        }
+        if (runId !== this.runId) return;
+      }
     }
 
     const messages = [...notes];
+    if (dscError) messages.push(`DSC failed: ${dscError.message}`);
     if (maiaError) messages.push(`Maia3 failed: ${maiaError.message}`);
-    const scored = columnValues({ fen, lines: result.lines, peer: fetched.peer, masters: fetched.masters, maia });
-    this.view = { state: 'done', fen, lines: result.lines, scored, message: messages.join(' ') };
+    const scored = columnValues({ fen, lines: result.lines, peer: fetched.peer, masters: fetched.masters, maia, dsc });
+    this.view = { state: 'done', fen, lines: result.lines, scored, message: messages.join(' '), errors: [...messages] };
     // Results with a failed source are not cached, so the next visit retries them.
     if (!messages.length) this.remember(key, result.lines, scored);
     this.render();
@@ -799,29 +990,45 @@ export class EvalPanel {
   // Without a token the explorer is not queried at all, so both columns use Maia3.
   async fetchDatabases(fen, rating, speed, token) {
     const notes = [];
+    if (!this.databaseEnabled) return { peer: null, masters: null, notes };
     if (!token) return { peer: null, masters: null, notes };
-    const query = async (name, request) => {
+    let peerError = null;
+    let mastersError = null;
+    const peer = await (async () => {
       try {
-        const db = await request();
+        const db = await fetchPeerDatabase({ fen, rating, speed, token });
         return db.total >= MIN_DB_GAMES ? db : null;
       } catch (error) {
-        notes.push(`${name} database unavailable: ${error.message}.`);
+        peerError = error;
         return null;
       }
-    };
-    const peer = await query('Lichess', () => fetchPeerDatabase({ fen, rating, speed, token }));
-    const masters = await query('Masters', () => fetchMastersDatabase({ fen, token }));
+    })();
+    const masters = await (async () => {
+      try {
+        const db = await fetchMastersDatabase({ fen, token });
+        return db.total >= MIN_DB_GAMES ? db : null;
+      } catch (error) {
+        mastersError = error;
+        return null;
+      }
+    })();
+    if (peerError && mastersError) {
+      notes.push('Failed to access Lichess databases');
+    } else if (peerError) {
+      notes.push('Failed to access Lichess games database');
+    } else if (mastersError) {
+      notes.push('Failed to access Lichess masters databases');
+    }
     return { peer, masters, notes };
   }
 
-  async scoreWithMaia({ runId, fen, lines, rating, master, wantPeerWdl, wantPeerProb, wantMasters }) {
+  async scoreWithMaia({ runId, fen, lines, rating, wantPeerWdl, wantPeerProb, wantMasters }) {
     await loadMaia((status) => this.onMaiaStatus(runId, status));
     const moves = lines.map((line) => {
       const uci = line.pv[0];
       return { uci, childFen: uci ? applyUci(fen, uci) : null };
     });
-    const ratings = MASTER_RANGES.find((range) => range.value === master).ratings;
-    return scoreMoves({ fen, moves, rating, ratings, wdl: wantPeerWdl, peerProbability: wantPeerProb, probabilities: wantMasters });
+    return scoreMoves({ fen, moves, rating, ratings: [], wdl: wantPeerWdl, peerProbability: wantPeerProb, probabilities: wantMasters });
   }
 
   // Called by loadMaia while the model downloads or prepares. Updates the
@@ -898,13 +1105,23 @@ export class EvalPanel {
 
     const { view } = this;
     if (view.state === 'error') {
-      this.body.append(el('p', 'eval-empty eval-error', view.message));
+      const message = view.message;
+      if (message && !this.hiddenErrors.has(message)) {
+        this.body.append(this.errorLine(message));
+      }
       return;
     }
 
     if (view.state === 'done' && view.lines.length === 0) {
       this.body.append(el('p', 'eval-empty', view.message));
       return;
+    }
+
+    if (view.state === 'done' && view.lines.length > 0) {
+      for (const message of view.errors ?? []) {
+        if (!message || this.hiddenErrors.has(message)) continue;
+        this.body.append(this.errorLine(message));
+      }
     }
 
     if ((view.state === 'loading' || view.state === 'scoring') && view.maia?.phase === 'download') {
@@ -936,9 +1153,6 @@ export class EvalPanel {
       );
     }
 
-    if (view.message && view.state === 'done') {
-      this.body.append(el('p', 'eval-empty eval-error', view.message));
-    }
     this.restorePreview();
   }
 
@@ -1004,7 +1218,7 @@ export class EvalPanel {
     primary.append(moveEl);
     const scoreWrap = el('span', 'eval-score-wrap');
     scoreWrap.append(el('span', 'eval-score', formatScore(line.score, sideToMoveOf(fen))));
-    scoreWrap.append(scoreSourceSlot(line.scoreSource || 'engine'));
+    scoreWrap.append(scoreSourceSlot(line.scoreSource || 'engine', this.tablebaseEnabled));
     primary.append(scoreWrap);
 
     const resultsView = this.settings.resultsView;
@@ -1163,7 +1377,7 @@ export class EvalPanel {
     const hasToken = Boolean(this.settings.token);
     const wrap = el('div', 'eval-circles-wrap');
     const circles = el('span', 'eval-circles');
-    wrap.append(circles, sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
+    wrap.append(circles, sourceSlot(entry?.source, databaseName, entry?.games, hasToken, this.databaseEnabled));
     // A zero probability means the move has no games in the database (for DB
     // entries) or Maia estimated it as never played. Null/undefined means
     // no value exists at all, which is shown as a dash instead of circles.
@@ -1190,7 +1404,7 @@ export class EvalPanel {
     const wrap = el('div', 'eval-wdl-wrap');
     const hasToken = Boolean(this.settings.token);
     if (!entry || !entry.wdl) {
-      wrap.append(el('div', 'eval-empty-inline', '—'), sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
+      wrap.append(el('div', 'eval-empty-inline', '—'), sourceSlot(entry?.source, databaseName, entry?.games, hasToken, this.databaseEnabled));
       return wrap;
     }
     const mover = sideToMoveOf(fen);
@@ -1209,7 +1423,7 @@ export class EvalPanel {
       segment.style.width = formatPercent(white[key]);
       bar.append(segment);
     }
-    wrap.append(bar, sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
+    wrap.append(bar, sourceSlot(entry?.source, databaseName, entry?.games, hasToken, this.databaseEnabled));
     return wrap;
   }
 }

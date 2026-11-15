@@ -13,7 +13,27 @@ move tree, and see engine lines with human-likelihood data.
   classical games only. Maia3 estimates are conditioned on a Lichess player
   rating and do not use the game's time control.
 - Maia3 human-move estimates where the database has too few games (marked `E`).
+- DSC-23M-FEN (ChessDS) master-focused human-move estimates for the Masters
+  probability column where the Masters database has too few games (marked `E`).
 - Five page themes and two piece sets.
+
+## Evaluation models
+
+Stockfish is bundled with the app. The human-move models run locally in the
+browser and are loaded when evaluation needs them.
+
+- **Maia3-23M** estimates Peer results and move probabilities. It is conditioned
+  on a Lichess player rating and does not use the game's time control.
+- **DSC-23M-FEN** estimates move probabilities for the Masters column when the
+  Lichess Masters database has too few games for a move. It is master-focused:
+  the app queries it with classical, FIDE, over-the-board inputs at 2578 Elo,
+  independently of the Peer rating.
+
+The DSC model file is not shipped with this repository (it is about 90 MB).
+Serve a converted ONNX export as `public/models/dsc-23m-fen.onnx`, or host it
+elsewhere and update `DSC_MODEL_URL` in `src/eval/dsc.js`. Without that file,
+the Masters probability has no fallback value and the panel reports a DSC
+error.
 
 ## Run
 

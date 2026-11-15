@@ -107,10 +107,26 @@
                       <span class="settings-switch" aria-hidden="true"></span>
                     </label>
 
+                    <div class="settings-divider"></div>
+                    <div class="settings-item">
+                      <span class="settings-item-label">
+                        <span class="settings-item-title">Lichess token</span>
+                        <span class="settings-item-desc">Needed for database data (peer and masters). Without it, only Maia3 is used. <br /><a href="https://lichess.org/account/oauth/token" target="_blank" rel="noopener noreferrer">Get your token</a> (you can leave all checkboxes unchecked)</span>
+                      </span>
+                      <div class="eval-token-control">
+                        <div class="eval-token-row">
+                          <input id="eval-token" class="eval-token-input" type="password" autocomplete="off" spellcheck="false" aria-label="Lichess API token" />
+                          <button id="eval-token-check" type="button" class="eval-token-check">Apply</button>
+                          <button id="eval-token-clear" type="button" class="eval-token-clear">Clear</button>
+                        </div>
+                        <span id="eval-token-status" class="eval-token-status" role="status" aria-live="polite"></span>
+                      </div>
+                    </div>
+
                     <div class="settings-legal">
                       <p>64 Quarks is free software under the GNU AGPL v3 or later. <a href="https://github.com/rafalchojnacki/64-quarks" target="_blank" rel="noopener noreferrer">Source code</a> · <a href="https://github.com/rafalchojnacki/64-quarks/blob/master/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Third-party notices</a> · <a href="/licenses/AGPL-3.0.txt" target="_blank" rel="noopener noreferrer">License</a></p>
-                      <p>Opening data: Lichess.org (used with your token). Maia3 model: CSSLab, University of Toronto. Stockfish: GPL-3.0. Fonts Geist Sans and Geist Mono by Vercel: SIL OFL 1.1. Piece sets Staunty, Maestro and Cardinal by sadsnake1: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a> (non-commercial).</p>
-                      <p>Not affiliated with Lichess or CSSLab. Do not use during games on Lichess.</p>
+                      <p>Opening data: Lichess.org (used with your token). Maia3 model: CSSLab, University of Toronto. DSC-23M-FEN model: ChessDS (Albert W. Hamood), CC BY 4.0, used for master move probabilities. Stockfish: GPL-3.0. Fonts Geist Sans and Geist Mono by Vercel: SIL OFL 1.1. Piece sets Staunty, Maestro and Cardinal by sadsnake1: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a> (non-commercial).</p>
+                      <p>Not affiliated with Lichess, CSSLab, or ChessDS. Do not use during games on Lichess.</p>
                     </div>
                   </div>
                 </div>
@@ -149,15 +165,8 @@
                   </div>
                   <div class="settings-item">
                     <span class="settings-item-label">
-                      <span class="settings-item-title">Master ratings</span>
-		      <span class="settings-item-desc">Reference rating for move likelihood. The Masters database holds classical games only. Maia3 estimates are conditioned on a Lichess player rating and do not use the game's time control.</span>
-                    </span>
-                    <div id="eval-master" class="eval-seg" role="group" aria-label="Master blitz ratings"></div>
-                  </div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
                       <span class="settings-item-title">Peer rating</span>
-                      <span class="settings-item-desc">Reference rating for peer play. Peer database data uses the game's time control (blitz if unknown). Maia3 estimates are conditioned on a Lichess player rating and do not use the game's time control.</span>
+                      <span class="settings-item-desc">Reference rating for peer play. Peer database data uses the game's time control (blitz if unknown). Move estimates use the Maia3 AI model, which is conditioned on a Lichess player rating and does not use the game's time control.</span>
                     </span>
                     <div class="eval-dropdown settings-dropdown">
                       <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
@@ -182,6 +191,14 @@
                     </span>
                     <div id="eval-prob-view" class="eval-seg" role="group" aria-label="Probability column"></div>
                   </div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Databases and tablebases</span>
+		      <span id="eval-external-data-desc" class="settings-item-desc">When enabled, game databases (for peer and master data) and endgame tablebases serve as the primary evaluation source instead of engines and AI models. A Lichess access token is required.</span>
+		      <span id="eval-external-data-warning" class="eval-external-data-warning" hidden>⚠ Lichess token is not set</span>
+                    </span>
+                    <div id="eval-external-data" class="eval-seg" role="group" aria-label="External data"></div>
+                  </div>
                   <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
                     <span class="settings-item-label">
                       <span class="settings-item-title">Move preview</span>
@@ -190,20 +207,6 @@
                     <input id="eval-preview" type="checkbox" />
                     <span class="settings-switch" aria-hidden="true"></span>
                   </label>
-                  <div class="settings-divider"></div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Lichess token</span>
-                      <span class="settings-item-desc">Needed for database data (peer and masters). Without it, only Maia3 is used. <br /><a href="https://lichess.org/account/oauth/token" target="_blank" rel="noopener noreferrer">Get your token</a> (you can leave all checkboxes unchecked)</span>
-                    </span>
-                    <div class="eval-token-control">
-                      <div class="eval-token-row">
-                        <input id="eval-token" class="eval-token-input" type="password" autocomplete="off" spellcheck="false" aria-label="Lichess API token" />
-                        <button id="eval-token-check" type="button" class="eval-token-check">Apply</button>
-                      </div>
-                      <span id="eval-token-status" class="eval-token-status" role="status" aria-live="polite"></span>
-                    </div>
-                  </div>
                 </div>
                 <div class="analysis-panel-body">
                   <div id="eval-body" class="eval-body"></div>
