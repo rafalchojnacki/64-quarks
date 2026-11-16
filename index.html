@@ -176,6 +176,14 @@
                       <ul id="eval-rating-list" class="eval-dd-list" role="listbox" aria-label="Peer rating" hidden></ul>
                     </div>
                   </div>
+                  <div class="settings-item">
+                    <span class="settings-item-label">
+                      <span class="settings-item-title">Evaluation reference data</span>
+		      <span id="eval-external-data-desc" class="settings-item-desc">When enabled, game databases (for peer and master data) and endgame tablebases serve as the primary evaluation source instead of engines and AI models. A Lichess access token is required.</span>
+		      <span id="eval-external-data-warning" class="eval-external-data-warning" hidden>⚠ Lichess token is not set</span>
+                    </span>
+                    <div id="eval-external-data" class="eval-seg" role="group" aria-label="Evaluation reference data"></div>
+                  </div>
                   <div class="settings-divider"></div>
                   <div class="settings-item">
                     <span class="settings-item-label">
@@ -190,14 +198,6 @@
                       <span class="settings-item-desc">Which play-rate line is shown</span>
                     </span>
                     <div id="eval-prob-view" class="eval-seg" role="group" aria-label="Play rate column"></div>
-                  </div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Databases and tablebases</span>
-		      <span id="eval-external-data-desc" class="settings-item-desc">When enabled, game databases (for peer and master data) and endgame tablebases serve as the primary evaluation source instead of engines and AI models. A Lichess access token is required.</span>
-		      <span id="eval-external-data-warning" class="eval-external-data-warning" hidden>⚠ Lichess token is not set</span>
-                    </span>
-                    <div id="eval-external-data" class="eval-seg" role="group" aria-label="External data"></div>
                   </div>
                   <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
                     <span class="settings-item-label">
