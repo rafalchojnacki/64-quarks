@@ -478,9 +478,13 @@ main {
   gap: 6px;
 }
 
-/* Pushes Import and Settings to the right edge of the row. */
-.side-actions #import-btn {
+/* Keep Settings on the right edge of the row; Import stays left. */
+.side-actions .settings-widget {
   margin-left: auto;
+}
+
+.side-actions #import-btn {
+  padding-left: 0;
 }
 
 /* Text-and-icon buttons without border or background. */
@@ -501,6 +505,11 @@ main {
   width: 18px;
   height: 18px;
   display: block;
+}
+
+.side-action:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .analysis-section {

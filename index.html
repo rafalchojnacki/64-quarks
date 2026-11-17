@@ -57,7 +57,11 @@
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 2v4a2 2 0 0 0 2 2h4" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 15h10" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 18 3-3-3-3" /></svg>
                   <span>Import</span>
                 </button>
-                <div class="settings-widget">
+                <button id="clear-btn" type="button" class="side-action" title="Clear all moves" aria-label="Clear all moves">
+                   <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 3v5h5" /></svg>
+                   <span>Clear</span>
+                 </button>
+<div class="settings-widget">
                   <button id="settings-toggle" type="button" title="Settings" aria-label="Settings" aria-expanded="false" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
@@ -263,12 +267,6 @@
                     </button>
                   </div>
                   <div class="nav-buttons panel-action-buttons" role="group" aria-label="Position actions">
-                    <button id="clear-moves-btn" type="button" title="Clear all moves" aria-label="Clear all moves">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                    </button>
-                    <button id="clear-annotations-btn" type="button" title="Clear all annotations" aria-label="Clear all annotations">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 7l6 6m0-6-6 6" /></svg>
-                    </button>
                     <button id="share-btn" type="button" title="Share position and game" aria-label="Share position and game" aria-haspopup="dialog">
                       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2" /><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" /><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2" /><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
                     </button>

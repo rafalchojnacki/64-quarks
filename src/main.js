@@ -43,6 +43,7 @@ const MOVE_GLYPH_IDS = MOVE_GLYPHS.map((glyph) => glyph.id);
 const POSITION_GLYPH_IDS = POSITION_GLYPHS.map((glyph) => glyph.id);
 
 const importBtn = document.getElementById('import-btn');
+const clearBtn = document.getElementById('clear-btn');
 const clearMovesBtn = document.getElementById('clear-moves-btn');
 const clearAnnotationsBtn = document.getElementById('clear-annotations-btn');
 const importDialog = document.getElementById('import-dialog');
@@ -393,8 +394,9 @@ function refresh() {
   navPrev.disabled = entry.id === moveTree.id;
   navNext.disabled = !entry.children.length;
   navLast.disabled = !mainChildOf(entry);
-  clearMovesBtn.disabled = moveTree.children.length === 0;
-  clearAnnotationsBtn.disabled = !hasAnnotations();
+  if (clearMovesBtn) clearMovesBtn.disabled = moveTree.children.length === 0;
+  if (clearBtn) clearBtn.disabled = moveTree.children.length === 0 && currentFen === START_FEN;
+  if (clearAnnotationsBtn) clearAnnotationsBtn.disabled = !hasAnnotations();
   renderMoveList();
   renderMoveSelector();
   ensureActiveMoveVisible();
@@ -1289,26 +1291,42 @@ deleteConfirm.addEventListener('click', () => {
 
 importBtn.addEventListener('click', openImportDialog);
 
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    if (moveTree.children.length === 0) return;
+    openConfirmDialog({
+      title: 'Clear all moves?',
+      message: 'This clears the board and deletes all moves. This cannot be undone.',
+      label: 'Clear',
+      onConfirm: resetGame,
+    });
+  });
+}
+
 // Clearing discards every move, so it always asks first. The button is disabled
 // when there are no moves, so the confirm dialog is only reachable with moves present.
-clearMovesBtn.addEventListener('click', () => {
-  if (moveTree.children.length === 0) return;
-  openConfirmDialog({
-    title: 'Clear all moves?',
-    message: 'This clears the board and deletes all moves. This cannot be undone.',
-    label: 'Clear',
-    onConfirm: resetGame,
+if (clearMovesBtn) {
+  clearMovesBtn.addEventListener('click', () => {
+    if (moveTree.children.length === 0) return;
+    openConfirmDialog({
+      title: 'Clear all moves?',
+      message: 'This clears the board and deletes all moves. This cannot be undone.',
+      label: 'Clear',
+      onConfirm: resetGame,
+    });
   });
-});
+}
 
-clearAnnotationsBtn.addEventListener('click', () => {
-  openConfirmDialog({
-    title: 'Clear all annotations?',
-    message: 'This removes all move glyphs, position glyphs, and engine eval markers. This cannot be undone.',
-    label: 'Clear',
-    onConfirm: clearAnnotations,
+if (clearAnnotationsBtn) {
+  clearAnnotationsBtn.addEventListener('click', () => {
+    openConfirmDialog({
+      title: 'Clear all annotations?',
+      message: 'This removes all move glyphs, position glyphs, and engine eval markers. This cannot be undone.',
+      label: 'Clear',
+      onConfirm: clearAnnotations,
+    });
   });
-});
+}
 
 deleteDialog.addEventListener('click', (event) => {
   if (event.target === deleteDialog) closeDeleteDialog();
