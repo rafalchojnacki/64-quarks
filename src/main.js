@@ -1610,6 +1610,36 @@ const sharePgnDownload = document.getElementById('share-pgn-download');
 const sharePgnVariations = document.getElementById('share-pgn-variations');
 const sharePgnAnnotations = document.getElementById('share-pgn-annotations');
 const shareClose = document.getElementById('share-close');
+const accountsDialog = document.getElementById('accounts-dialog');
+const accountsClose = document.getElementById('accounts-close');
+const manageAccountsLink = document.getElementById('manage-accounts-link');
+
+function openAccountsDialog() {
+  if (!accountsDialog) return;
+  closeSettings();
+  accountsDialog.hidden = false;
+}
+
+function closeAccountsDialog() {
+  if (!accountsDialog) return;
+  accountsDialog.hidden = true;
+}
+
+if (manageAccountsLink) {
+  manageAccountsLink.addEventListener('click', (e) => { e.preventDefault(); openAccountsDialog(); });
+}
+if (accountsClose) {
+  accountsClose.addEventListener('click', closeAccountsDialog);
+}
+if (accountsDialog) {
+  accountsDialog.addEventListener('click', (e) => { if (e.target === accountsDialog) closeAccountsDialog(); });
+}
+
+[shareFenInput, sharePgnInput].forEach((input) => {
+  if (!input) return;
+  input.addEventListener('click', () => input.select());
+  input.addEventListener('focus', () => input.select());
+});
 
 function copyTextFallback(text) {
   const area = document.createElement('textarea');

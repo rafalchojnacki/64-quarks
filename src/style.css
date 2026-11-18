@@ -1024,6 +1024,8 @@ main {
 
 .share-dialog-panel h2 {
   margin: 0;
+  padding-top: 24px;
+  padding-bottom: 8px;
   font-size: 16px;
 }
 
@@ -1091,12 +1093,96 @@ main {
   flex-wrap: wrap;
 }
 
+.linked-account-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.linked-accounts-manage-row {
+  display: flex;
+  gap: 12px;
+}
+
+.linked-account-field-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.linked-account-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.linked-account-display .linked-account-link {
+  display: inline;
+  padding: 0;
+}
+
+.linked-account-display[hidden] {
+  display: none;
+}
+
+.accounts-dialog .share-dialog-panel {
+  width: min(100%, 640px);
+}
+
+.accounts-dialog .settings-item {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+
+
+.linked-account-manage {
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--text-main) 3%, transparent);
+}
+
+.linked-account-manage-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.share-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-top: 18px;
+  margin-bottom: 4px;
+}
+
+.share-section-title--pgn {
+  margin-top: 20px;
+}
+
 .share-option {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
   color: var(--text-main);
+  cursor: pointer;
+}
+
+.share-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -2242,9 +2328,10 @@ main {
 
 .eval-token-control {
   flex: none;
+  width: 260px;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 4px;
 }
 
@@ -2335,6 +2422,161 @@ main {
 
 .eval-token-input::placeholder {
   color: var(--text-dim);
+}
+
+.linked-accounts {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0 2px 12px;
+  justify-content: flex-end;
+  margin-left: auto;
+  width: fit-content;
+}
+
+.linked-account {
+  flex: 0 0 auto;
+  max-width: 180px;
+  padding: 8px 0 8px 8px;
+}
+
+.linked-account {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.linked-account-icon {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.linked-account-icon svg {
+  flex: none;
+}
+
+.linked-account-icon svg.is-dim {
+  opacity: 0.4;
+}
+
+.linked-account-user.is-dim {
+  opacity: 0.4;
+}
+
+.linked-account-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.linked-account-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.linked-account-logo,
+.linked-account-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.linked-account-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #7fa650;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.linked-account-name-label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-dim);
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.linked-account-user {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-muted);
+  min-height: 1.2em;
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.linked-account-user.is-linked {
+  color: var(--text-main);
+}
+
+.linked-account-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.linked-account-user.is-linked {
+  color: var(--text-main);
+  font-weight: 400;
+}
+
+.linked-account-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.linked-account-hint a {
+  color: var(--accent);
+}
+
+.linked-account-link {
+  display: inline;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#manage-accounts-link {
+  display: block;
+  text-align: right;
+  padding: 0 8px 12px;
+}
+
+.linked-account-link:hover {
+  text-decoration: underline;
+}
+
+.linked-account-form[hidden] {
+  display: none;
+}
+
+.linked-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* Column labels above the evaluation rows. Widths match .eval-move, .eval-score,

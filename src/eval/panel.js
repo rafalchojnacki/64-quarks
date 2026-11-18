@@ -364,6 +364,26 @@ export class EvalPanel {
     this.tokenCheck = doc.getElementById('eval-token-check');
     this.tokenClear = doc.getElementById('eval-token-clear');
     this.tokenStatus = doc.getElementById('eval-token-status');
+    this.lichessName = doc.getElementById('lichess-account-name');
+    this.lichessIcon = doc.getElementById('lichess-account-icon');
+    this.lichessLinkedDisplay = doc.getElementById('lichess-linked-display');
+    this.lichessModalName = doc.getElementById('lichess-modal-name');
+    this.lichessUnlinkLink = doc.getElementById('lichess-unlink-link');
+    this.lichessLinkForm = doc.getElementById('lichess-link-form');
+    this.lichessLinkBtn = doc.getElementById('lichess-link-btn');
+    this.lichessLinkForm = doc.getElementById('lichess-link-form');
+    this.chessComLinkBtn = doc.getElementById('chesscom-link-btn');
+    this.chessComLinkForm = doc.getElementById('chesscom-link-form');
+    this.chessComInput = doc.getElementById('chesscom-username');
+    this.chessComLink = doc.getElementById('chesscom-link');
+    this.chessComClear = doc.getElementById('chesscom-clear');
+    this.chessComStatus = doc.getElementById('chesscom-status');
+    this.chessComName = doc.getElementById('chesscom-account-name');
+    this.chessComIcon = doc.getElementById('chesscom-account-icon');
+    this.chessComLinkedDisplay = doc.getElementById('chesscom-linked-display');
+    this.chessComModalName = doc.getElementById('chesscom-modal-name');
+    this.chessComUnlinkLink = doc.getElementById('chesscom-unlink-link');
+    this.chessComLinkForm = doc.getElementById('chesscom-link-form');
     this.externalDataDesc = doc.getElementById('eval-external-data-desc');
     this.externalDataWarning = doc.getElementById('eval-external-data-warning');
     this.externalDataItem = this.externalDataDesc?.closest('.settings-item');
@@ -473,10 +493,63 @@ export class EvalPanel {
       this.updateTokenButtons();
     });
 
-    this.settingsBtn.addEventListener('click', () => this.toggleSettingsMenu());
-    window.addEventListener('resize', () => {
-      if (!this.settingsMenu.hidden) positionPopover(this.settingsMenu, this.settingsBtn);
-    });
+    if (this.lichessUnlinkLink) {
+      this.lichessUnlinkLink.addEventListener('click', (event) => { event.preventDefault(); this.clearToken(); });
+    }
+    if (this.chessComUnlinkLink) {
+      this.chessComUnlinkLink.addEventListener('click', (event) => { event.preventDefault(); this.unlinkChessCom(); });
+    }
+
+    if (this.lichessLinkBtn) {
+      this.lichessLinkBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (this.lichessLinkForm && !this.lichessLinkForm.hidden) {
+          this.toggleLichessForm(false);
+        } else if (this.settings.lichessUsername) {
+          this.clearToken();
+        } else {
+          this.toggleLichessForm(true);
+        }
+      });
+    }
+    if (this.chessComLinkBtn) {
+      this.chessComLinkBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (this.chessComLinkForm && !this.chessComLinkForm.hidden) {
+          this.toggleChessComForm(false);
+        } else if (this.settings.chessComUsername) {
+          this.unlinkChessCom();
+        } else {
+          this.toggleChessComForm(true);
+        }
+      });
+    }
+
+    if (this.chessComLink) {
+      this.chessComLink.addEventListener('click', () => this.linkChessCom());
+    }
+    if (this.chessComClear) {
+      this.chessComClear.addEventListener('click', () => this.unlinkChessCom());
+    }
+    if (this.chessComInput) {
+      this.chessComInput.addEventListener('input', () => {
+        this.setChessComStatus(null);
+        this.updateChessComButtons();
+      });
+      this.chessComInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          this.linkChessCom();
+        }
+      });
+    }
+
+    if (this.settingsBtn) {
+      this.settingsBtn.addEventListener('click', () => this.toggleSettingsMenu());
+      window.addEventListener('resize', () => {
+        if (this.settingsMenu && !this.settingsMenu.hidden) positionPopover(this.settingsMenu, this.settingsBtn);
+      });
+    }
 
     this.ratingBtn.addEventListener('click', () => {
       if (this.ratingList.hidden) this.openRatingList();
@@ -679,6 +752,61 @@ export class EvalPanel {
     this.tokenInput.value = this.settings.token;
     this.tokenInput.placeholder = this.settings.token ? '' : 'Not set';
     this.updateTokenButtons();
+    if (this.lichessName) {
+      this.lichessName.textContent = this.settings.lichessUsername || 'not linked';
+      this.lichessName.classList.toggle('is-linked', Boolean(this.settings.lichessUsername));
+    }
+    if (this.lichessLinkedDisplay) {
+      this.lichessLinkedDisplay.hidden = !this.settings.lichessUsername;
+    }
+    if (this.lichessModalName) {
+      this.lichessModalName.textContent = this.settings.lichessUsername || '';
+    }
+    if (this.lichessLinkForm) {
+      this.lichessLinkForm.hidden = Boolean(this.settings.lichessUsername);
+    }
+    if (this.tokenCheck) this.tokenCheck.hidden = Boolean(this.settings.lichessUsername);
+    if (this.tokenClear) this.tokenClear.hidden = !this.settings.lichessUsername;
+    if (this.tokenInput) this.tokenInput.disabled = Boolean(this.settings.lichessUsername);
+    if (this.lichessIcon) {
+      this.lichessIcon.querySelector('svg')?.classList.toggle('is-dim', !this.settings.lichessUsername);
+    }
+    if (this.lichessName) {
+      this.lichessName.classList.toggle('is-dim', !this.settings.lichessUsername);
+    }
+    if (this.lichessLinkBtn && this.lichessLinkForm?.hidden) {
+      this.lichessLinkBtn.textContent = this.settings.lichessUsername ? '[unlink]' : '[link]';
+    }
+    if (this.chessComLinkBtn && this.chessComLinkForm?.hidden) {
+      this.chessComLinkBtn.textContent = this.settings.chessComUsername ? '[unlink]' : '[link]';
+    }
+    if (this.chessComName) {
+      this.chessComName.textContent = this.settings.chessComUsername || 'not linked';
+      this.chessComName.classList.toggle('is-linked', Boolean(this.settings.chessComUsername));
+    }
+    if (this.chessComLinkedDisplay) {
+      this.chessComLinkedDisplay.hidden = !this.settings.chessComUsername;
+    }
+    if (this.chessComModalName) {
+      this.chessComModalName.textContent = this.settings.chessComUsername || '';
+    }
+    if (this.chessComLinkForm) {
+      this.chessComLinkForm.hidden = Boolean(this.settings.chessComUsername);
+    }
+    if (this.chessComLink) this.chessComLink.hidden = Boolean(this.settings.chessComUsername);
+    if (this.chessComClear) this.chessComClear.hidden = !this.settings.chessComUsername;
+    if (this.chessComInput) this.chessComInput.disabled = Boolean(this.settings.chessComUsername);
+    if (this.chessComIcon) {
+      this.chessComIcon.querySelector('svg')?.classList.toggle('is-dim', !this.settings.chessComUsername);
+    }
+    if (this.chessComName) {
+      this.chessComName.classList.toggle('is-dim', !this.settings.chessComUsername);
+    }
+    if (this.chessComInput) {
+      this.chessComInput.value = this.settings.chessComUsername;
+      this.chessComInput.placeholder = this.settings.chessComUsername ? '' : 'Not set';
+    }
+    this.updateChessComButtons();
     this.updateExternalDataDesc();
     this.ratingLabel.textContent = String(this.settings.rating);
     this.ratingItems.forEach((item) => {

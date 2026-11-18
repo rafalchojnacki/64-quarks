@@ -69,29 +69,76 @@
                     </svg>
                   </button>
                   <div id="settings-menu" class="settings-menu" role="menu" hidden>
-                    <div class="settings-header">Settings</div>
-                    <div class="settings-item">
-                      <span class="settings-item-label">
-                        <span class="settings-item-title">Page style</span>
-                        <span class="settings-item-desc">Theme of the page and board</span>
-                      </span>
-                      <div class="settings-theme-buttons" role="group" aria-label="Page style">
-                        <button type="button" class="settings-theme-btn" data-theme-value="graphite" aria-pressed="false">Graphite</button>
-                        <button type="button" class="settings-theme-btn" data-theme-value="navy" aria-pressed="false">Navy</button>
-                        <button type="button" class="settings-theme-btn" data-theme-value="walnut" aria-pressed="true">Walnut</button>
-                        <button type="button" class="settings-theme-btn" data-theme-value="birch" aria-pressed="false">Birch</button>
-                        <button type="button" class="settings-theme-btn" data-theme-value="paper" aria-pressed="false">Paper</button>
+
+                    <div class="linked-accounts">
+                      <div class="linked-account">
+                        <div class="linked-account-icon" id="lichess-account-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                          <div class="linked-account-text">
+                            <div class="linked-account-head">
+                              <span class="linked-account-name-label">Lichess</span>
+                            </div>
+                            <div class="linked-account-user" id="lichess-account-name">not linked</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="linked-account">
+                        <div class="linked-account-icon" id="chesscom-account-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                          <div class="linked-account-text">
+                            <div class="linked-account-head">
+                              <span class="linked-account-name-label">Chess.com</span>
+                            </div>
+                            <div class="linked-account-user" id="chesscom-account-name">not linked</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div class="settings-item">
-                      <span class="settings-item-label">
-                        <span class="settings-item-title">Piece set</span>
-                        <span class="settings-item-desc">Pieces used on the board</span>
-                      </span>
-                      <div class="settings-theme-buttons" role="group" aria-label="Piece set">
-                        <button type="button" class="settings-theme-btn settings-piece-btn" data-piece-value="staunty" aria-pressed="true">Staunty</button>
-                        <button type="button" class="settings-theme-btn settings-piece-btn" data-piece-value="maestro" aria-pressed="false">Maestro</button>
-                        <button type="button" class="settings-theme-btn settings-piece-btn" data-piece-value="cardinal" aria-pressed="false">Cardinal</button>
+                    <a id="manage-accounts-link" href="#" class="linked-account-link">Manage linked accounts</a>
+
+<div class="settings-group" data-group="general">
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">General Settings</button>
+                      <div class="settings-group-body" hidden>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Page style</span>
+                            <span class="settings-item-desc">Theme of the page and board</span>
+                          </span>
+                          <div class="eval-seg" role="group" aria-label="Page style">
+                            <button type="button" class="eval-seg-btn" data-theme-value="graphite" aria-pressed="false">Graphite</button>
+                            <button type="button" class="eval-seg-btn" data-theme-value="navy" aria-pressed="false">Navy</button>
+                            <button type="button" class="eval-seg-btn" data-theme-value="walnut" aria-pressed="true">Walnut</button>
+                            <button type="button" class="eval-seg-btn" data-theme-value="birch" aria-pressed="false">Birch</button>
+                            <button type="button" class="eval-seg-btn" data-theme-value="paper" aria-pressed="false">Paper</button>
+                          </div>
+                        </div>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Piece set</span>
+                            <span class="settings-item-desc">Pieces used on the board</span>
+                          </span>
+                          <div class="eval-seg" role="group" aria-label="Piece set">
+                            <button type="button" class="eval-seg-btn" data-piece-value="staunty" aria-pressed="true">Staunty</button>
+                            <button type="button" class="eval-seg-btn" data-piece-value="maestro" aria-pressed="false">Maestro</button>
+                            <button type="button" class="eval-seg-btn" data-piece-value="cardinal" aria-pressed="false">Cardinal</button>
+                          </div>
+                        </div>
+                        <label class="settings-item" role="menuitemcheckbox" aria-checked="true">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Legal move dots</span>
+                            <span class="settings-item-desc">Show destinations for the selected piece</span>
+                          </span>
+                          <input id="setting-show-dests" type="checkbox" checked />
+                          <span class="settings-switch" aria-hidden="true"></span>
+                        </label>
+                        <label class="settings-item" role="menuitemcheckbox" aria-checked="true">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Last move highlight</span>
+                            <span class="settings-item-desc">Highlight the squares of the last move</span>
+                          </span>
+                          <input id="setting-show-last-move" type="checkbox" checked />
+                          <span class="settings-switch" aria-hidden="true"></span>
+                        </label>
                       </div>
                     </div>
                     <label class="settings-item" role="menuitemcheckbox" aria-checked="true">
@@ -110,22 +157,6 @@
                       <input id="setting-show-last-move" type="checkbox" checked />
                       <span class="settings-switch" aria-hidden="true"></span>
                     </label>
-
-                    <div class="settings-divider"></div>
-                    <div class="settings-item">
-                      <span class="settings-item-label">
-                        <span class="settings-item-title">Lichess token</span>
-                        <span class="settings-item-desc">Needed for database data (peer and masters). Without it, only Maia3 is used. <br /><a href="https://lichess.org/account/oauth/token" target="_blank" rel="noopener noreferrer">Get your token</a> (you can leave all checkboxes unchecked)</span>
-                      </span>
-                      <div class="eval-token-control">
-                        <div class="eval-token-row">
-                          <input id="eval-token" class="eval-token-input" type="password" autocomplete="off" spellcheck="false" aria-label="Lichess API token" />
-                          <button id="eval-token-check" type="button" class="eval-token-check">Apply</button>
-                          <button id="eval-token-clear" type="button" class="eval-token-clear">Clear</button>
-                        </div>
-                        <span id="eval-token-status" class="eval-token-status" role="status" aria-live="polite"></span>
-                      </div>
-                    </div>
 
                     <div class="settings-legal">
                       <p>64 Quarks is free software under the GNU AGPL v3 or later. <a href="https://github.com/rafalchojnacki/64-quarks" target="_blank" rel="noopener noreferrer">Source code</a> · <a href="https://github.com/rafalchojnacki/64-quarks/blob/master/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Third-party notices</a> · <a href="/licenses/AGPL-3.0.txt" target="_blank" rel="noopener noreferrer">License</a></p>
@@ -278,6 +309,52 @@
         </div>
       </div>
     </main>
+    <div id="accounts-dialog" class="share-dialog accounts-dialog" role="dialog" aria-modal="true" aria-labelledby="accounts-dialog-title" hidden>
+      <div class="share-dialog-panel">
+        <h2 id="accounts-dialog-title">Linked accounts</h2>
+        <div class="settings-item">
+          <span class="settings-item-label">
+            <span class="settings-item-title">Lichess</span>
+            <span class="settings-item-desc">Token from <a href="https://lichess.org/account/oauth/token" target="_blank" rel="noopener noreferrer">lichess.org/account/oauth/token</a></span>
+          </span>
+          <div class="eval-token-control">
+            <div id="lichess-linked-display" class="linked-account-display" hidden>
+              <span id="lichess-modal-name" class="linked-account-user"></span>
+              <button id="lichess-unlink-link" type="button" class="eval-token-check">unlink</button>
+            </div>
+            <div id="lichess-link-form" class="eval-token-form">
+              <div class="eval-token-row">
+                <input id="eval-token" class="eval-token-input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste Lichess token" aria-label="Lichess API token" />
+                <button id="eval-token-check" type="button" class="eval-token-check">Link</button>
+              </div>
+              <span id="eval-token-status" class="eval-token-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+        <div class="settings-item">
+          <span class="settings-item-label">
+            <span class="settings-item-title">Chess.com</span>
+            <span class="settings-item-desc">Chess.com username</span>
+          </span>
+          <div class="eval-token-control">
+            <div id="chesscom-linked-display" class="linked-account-display" hidden>
+              <span id="chesscom-modal-name" class="linked-account-user"></span>
+              <button id="chesscom-unlink-link" type="button" class="eval-token-check">unlink</button>
+            </div>
+            <div id="chesscom-link-form" class="eval-token-form">
+              <div class="eval-token-row">
+                <input id="chesscom-username" class="eval-token-input" type="text" autocomplete="off" spellcheck="false" placeholder="Chess.com username" aria-label="Chess.com username" />
+                <button id="chesscom-link" type="button" class="eval-token-check">Link</button>
+              </div>
+              <span id="chesscom-status" class="eval-token-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+        <div class="share-dialog-actions">
+          <button id="accounts-close" type="button">Close</button>
+        </div>
+      </div>
+    </div>
     <div id="move-context-menu" class="move-context-menu" role="menu" hidden></div>
     <div id="import-dialog" class="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-dialog-title" hidden>
       <div class="import-dialog-panel">
@@ -304,6 +381,7 @@
     <div id="share-dialog" class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title" hidden>
       <div class="share-dialog-panel">
         <h2 id="share-dialog-title">Share</h2>
+        <div class="share-section-title">Position (FEN)</div>
         <div class="share-row">
           <input id="share-fen-input" type="text" readonly spellcheck="false" />
           <div class="share-row-actions">
@@ -315,6 +393,7 @@
             </button>
           </div>
         </div>
+        <div class="share-section-title share-section-title--pgn">Game (PGN)</div>
         <div class="share-row">
           <textarea id="share-pgn-input" rows="8" readonly spellcheck="false"></textarea>
           <div class="share-row-actions">
