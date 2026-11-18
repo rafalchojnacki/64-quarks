@@ -10,6 +10,7 @@ import {
   tablebaseMoveScore,
   gameSpeed,
   validateLichessToken,
+  fetchLichessAccount,
 } from './lichess.js';
 import { el, positionPopover, segmentedGroup } from '../ui.js';
 import { setSplitEnabled } from '../sidebar-split.js';
@@ -366,24 +367,12 @@ export class EvalPanel {
     this.tokenStatus = doc.getElementById('eval-token-status');
     this.lichessName = doc.getElementById('lichess-account-name');
     this.lichessIcon = doc.getElementById('lichess-account-icon');
-    this.lichessLinkedDisplay = doc.getElementById('lichess-linked-display');
+    this.lichessConnectedDisplay = doc.getElementById('lichess-connected-display');
     this.lichessModalName = doc.getElementById('lichess-modal-name');
     this.lichessUnlinkLink = doc.getElementById('lichess-unlink-link');
     this.lichessLinkForm = doc.getElementById('lichess-link-form');
     this.lichessLinkBtn = doc.getElementById('lichess-link-btn');
     this.lichessLinkForm = doc.getElementById('lichess-link-form');
-    this.chessComLinkBtn = doc.getElementById('chesscom-link-btn');
-    this.chessComLinkForm = doc.getElementById('chesscom-link-form');
-    this.chessComInput = doc.getElementById('chesscom-username');
-    this.chessComLink = doc.getElementById('chesscom-link');
-    this.chessComClear = doc.getElementById('chesscom-clear');
-    this.chessComStatus = doc.getElementById('chesscom-status');
-    this.chessComName = doc.getElementById('chesscom-account-name');
-    this.chessComIcon = doc.getElementById('chesscom-account-icon');
-    this.chessComLinkedDisplay = doc.getElementById('chesscom-linked-display');
-    this.chessComModalName = doc.getElementById('chesscom-modal-name');
-    this.chessComUnlinkLink = doc.getElementById('chesscom-unlink-link');
-    this.chessComLinkForm = doc.getElementById('chesscom-link-form');
     this.externalDataDesc = doc.getElementById('eval-external-data-desc');
     this.externalDataWarning = doc.getElementById('eval-external-data-warning');
     this.externalDataItem = this.externalDataDesc?.closest('.settings-item');
@@ -404,6 +393,11 @@ export class EvalPanel {
 
     this.buildControls(doc);
     this.syncControls();
+    if (this.settings.token && !this.settings.lichessUsername) {
+      fetchLichessAccount(this.settings.token)
+        .then((username) => this.updateSettings({ lichessUsername: username }))
+        .catch(() => {});
+    }
     this.bind();
     this.render();
   }
@@ -480,8 +474,8 @@ export class EvalPanel {
     this.toggle.addEventListener('change', () => this.setEnabled(this.toggle.checked));
     this.previewInput.addEventListener('change', () => this.updateSettings({ preview: this.previewInput.checked }));
     // The token is applied only after Check validates it (see checkToken).
-    this.tokenCheck.addEventListener('click', () => this.checkToken());
-    this.tokenClear?.addEventListener('click', () => this.clearToken());
+    this.tokenCheck?.addEventListener('click', (event) => { event.preventDefault(); this.checkToken(); });
+    this.tokenClear?.addEventListener('click', (event) => { event.preventDefault(); this.clearToken(); });
     this.tokenInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -496,9 +490,6 @@ export class EvalPanel {
     if (this.lichessUnlinkLink) {
       this.lichessUnlinkLink.addEventListener('click', (event) => { event.preventDefault(); this.clearToken(); });
     }
-    if (this.chessComUnlinkLink) {
-      this.chessComUnlinkLink.addEventListener('click', (event) => { event.preventDefault(); this.unlinkChessCom(); });
-    }
 
     if (this.lichessLinkBtn) {
       this.lichessLinkBtn.addEventListener('click', (event) => {
@@ -512,38 +503,6 @@ export class EvalPanel {
         }
       });
     }
-    if (this.chessComLinkBtn) {
-      this.chessComLinkBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        if (this.chessComLinkForm && !this.chessComLinkForm.hidden) {
-          this.toggleChessComForm(false);
-        } else if (this.settings.chessComUsername) {
-          this.unlinkChessCom();
-        } else {
-          this.toggleChessComForm(true);
-        }
-      });
-    }
-
-    if (this.chessComLink) {
-      this.chessComLink.addEventListener('click', () => this.linkChessCom());
-    }
-    if (this.chessComClear) {
-      this.chessComClear.addEventListener('click', () => this.unlinkChessCom());
-    }
-    if (this.chessComInput) {
-      this.chessComInput.addEventListener('input', () => {
-        this.setChessComStatus(null);
-        this.updateChessComButtons();
-      });
-      this.chessComInput.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          this.linkChessCom();
-        }
-      });
-    }
-
     if (this.settingsBtn) {
       this.settingsBtn.addEventListener('click', () => this.toggleSettingsMenu());
       window.addEventListener('resize', () => {
@@ -558,9 +517,10 @@ export class EvalPanel {
 
     document.addEventListener('click', (event) => {
       if (
+        this.settingsMenu &&
         !this.settingsMenu.hidden &&
         !this.settingsMenu.contains(event.target) &&
-        !this.settingsBtn.contains(event.target)
+        (!this.settingsBtn || !this.settingsBtn.contains(event.target))
       ) {
         this.closeSettingsMenu();
       }
@@ -588,18 +548,20 @@ export class EvalPanel {
   }
 
   toggleSettingsMenu() {
+    if (!this.settingsMenu) return;
     if (this.settingsMenu.hidden) {
-      positionPopover(this.settingsMenu, this.settingsBtn);
+      if (this.settingsBtn) positionPopover(this.settingsMenu, this.settingsBtn);
       this.settingsMenu.hidden = false;
-      this.settingsBtn.setAttribute('aria-expanded', 'true');
+      if (this.settingsBtn) this.settingsBtn.setAttribute('aria-expanded', 'true');
     } else {
       this.closeSettingsMenu();
     }
   }
 
   closeSettingsMenu() {
+    if (!this.settingsMenu) return;
     this.settingsMenu.hidden = true;
-    this.settingsBtn.setAttribute('aria-expanded', 'false');
+    if (this.settingsBtn) this.settingsBtn.setAttribute('aria-expanded', 'false');
   }
 
   get databaseEnabled() {
@@ -693,28 +655,51 @@ export class EvalPanel {
     const token = this.tokenInput.value.trim();
     if (!token) {
       this.setTokenStatus(null);
-      this.updateSettings({ token: '' });
+      this.updateSettings({ token: '', lichessUsername: '' });
       return;
     }
     this.tokenCheck.disabled = true;
-    this.setTokenStatus('pending', 'Checking…');
+    this.tokenCheck.classList.add('is-loading');
     try {
       await validateLichessToken(token);
     } catch (error) {
       this.setTokenStatus('error', error.message);
       return;
     } finally {
+      this.tokenCheck.classList.remove('is-loading');
       this.updateTokenButtons();
     }
-    this.setTokenStatus('ok', 'Token accepted');
-    this.updateSettings({ token });
+    // Fetch the account behind the token so the connected username can be shown.
+    let username = '';
+    try {
+      username = await fetchLichessAccount(token);
+    } catch (error) {
+      this.setTokenStatus('error', error.message);
+      // Keep the token but without a resolved username.
+      this.updateSettings({ token, lichessUsername: '' });
+      this.syncControls();
+      return;
+    }
+    this.setTokenStatus('ok', `Connected as ${username}`);
+    this.toggleLichessForm(false);
+    this.updateSettings({ token, lichessUsername: username });
   }
 
   // Removes the stored token without validating.
   clearToken() {
     this.tokenInput.value = '';
     this.setTokenStatus(null);
-    this.updateSettings({ token: '' });
+    this.toggleLichessForm(false);
+    this.updateSettings({ token: '', lichessUsername: '' });
+  }
+
+  toggleLichessForm(force) {
+    if (!this.lichessLinkForm) return;
+    const open = force === undefined ? this.lichessLinkForm.hidden : force;
+    this.lichessLinkForm.hidden = !open;
+    if (this.lichessLinkBtn) {
+      this.lichessLinkBtn.textContent = this.lichessLinkForm.hidden ? (this.settings.lichessUsername ? '[disconnect]' : '[connect]') : '[hide]';
+    }
   }
 
   // kind: 'pending' | 'ok' | 'error' | null (no message).
@@ -753,11 +738,12 @@ export class EvalPanel {
     this.tokenInput.placeholder = this.settings.token ? '' : 'Not set';
     this.updateTokenButtons();
     if (this.lichessName) {
-      this.lichessName.textContent = this.settings.lichessUsername || 'not linked';
-      this.lichessName.classList.toggle('is-linked', Boolean(this.settings.lichessUsername));
+      const name = this.settings.lichessUsername || (this.settings.token ? 'connected' : 'not connected');
+      this.lichessName.textContent = name;
+      this.lichessName.classList.toggle('is-connected', Boolean(this.settings.token));
     }
-    if (this.lichessLinkedDisplay) {
-      this.lichessLinkedDisplay.hidden = !this.settings.lichessUsername;
+    if (this.lichessConnectedDisplay) {
+      this.lichessConnectedDisplay.hidden = !this.settings.lichessUsername;
     }
     if (this.lichessModalName) {
       this.lichessModalName.textContent = this.settings.lichessUsername || '';
@@ -775,38 +761,8 @@ export class EvalPanel {
       this.lichessName.classList.toggle('is-dim', !this.settings.lichessUsername);
     }
     if (this.lichessLinkBtn && this.lichessLinkForm?.hidden) {
-      this.lichessLinkBtn.textContent = this.settings.lichessUsername ? '[unlink]' : '[link]';
+      this.lichessLinkBtn.textContent = this.settings.lichessUsername ? '[disconnect]' : '[connect]';
     }
-    if (this.chessComLinkBtn && this.chessComLinkForm?.hidden) {
-      this.chessComLinkBtn.textContent = this.settings.chessComUsername ? '[unlink]' : '[link]';
-    }
-    if (this.chessComName) {
-      this.chessComName.textContent = this.settings.chessComUsername || 'not linked';
-      this.chessComName.classList.toggle('is-linked', Boolean(this.settings.chessComUsername));
-    }
-    if (this.chessComLinkedDisplay) {
-      this.chessComLinkedDisplay.hidden = !this.settings.chessComUsername;
-    }
-    if (this.chessComModalName) {
-      this.chessComModalName.textContent = this.settings.chessComUsername || '';
-    }
-    if (this.chessComLinkForm) {
-      this.chessComLinkForm.hidden = Boolean(this.settings.chessComUsername);
-    }
-    if (this.chessComLink) this.chessComLink.hidden = Boolean(this.settings.chessComUsername);
-    if (this.chessComClear) this.chessComClear.hidden = !this.settings.chessComUsername;
-    if (this.chessComInput) this.chessComInput.disabled = Boolean(this.settings.chessComUsername);
-    if (this.chessComIcon) {
-      this.chessComIcon.querySelector('svg')?.classList.toggle('is-dim', !this.settings.chessComUsername);
-    }
-    if (this.chessComName) {
-      this.chessComName.classList.toggle('is-dim', !this.settings.chessComUsername);
-    }
-    if (this.chessComInput) {
-      this.chessComInput.value = this.settings.chessComUsername;
-      this.chessComInput.placeholder = this.settings.chessComUsername ? '' : 'Not set';
-    }
-    this.updateChessComButtons();
     this.updateExternalDataDesc();
     this.ratingLabel.textContent = String(this.settings.rating);
     this.ratingItems.forEach((item) => {
@@ -1221,7 +1177,7 @@ export class EvalPanel {
     // Collapse the section to its header while evaluation is off.
     this.section.classList.toggle('collapsed', !this.enabled);
     setSplitEnabled(this.enabled);
-    this.settingsBtn.setAttribute('aria-pressed', String(!this.settingsMenu.hidden));
+    this.settingsBtn?.setAttribute('aria-pressed', String(this.settingsMenu ? !this.settingsMenu.hidden : false));
     this.body.replaceChildren();
 
     if (!this.enabled) {

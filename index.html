@@ -19,7 +19,7 @@
         /* storage unavailable: keep the default theme */
       }
     </script>
-    <!-- Linked here, not imported from main.js, so the styles apply before the first paint. -->
+    <!-- Connected here, not imported from main.js, so the styles apply before the first paint. -->
     <link rel="stylesheet" href="/src/theme.css" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
@@ -70,34 +70,42 @@
                   </button>
                   <div id="settings-menu" class="settings-menu" role="menu" hidden>
 
-                    <div class="linked-accounts">
-                      <div class="linked-account">
-                        <div class="linked-account-icon" id="lichess-account-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-                          <div class="linked-account-text">
-                            <div class="linked-account-head">
-                              <span class="linked-account-name-label">Lichess</span>
+                    <div class="connected-accounts">
+                      <div class="connected-account">
+                        <div class="connected-account-icon" id="lichess-account-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                          <div class="connected-account-text">
+                            <div class="connected-account-head">
+                              <span class="connected-account-name-label">Lichess</span>
                             </div>
-                            <div class="linked-account-user" id="lichess-account-name">not linked</div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="linked-account">
-                        <div class="linked-account-icon" id="chesscom-account-icon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-                          <div class="linked-account-text">
-                            <div class="linked-account-head">
-                              <span class="linked-account-name-label">Chess.com</span>
-                            </div>
-                            <div class="linked-account-user" id="chesscom-account-name">not linked</div>
+                            <div class="connected-account-user" id="lichess-account-name">not connected</div>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <a id="manage-accounts-link" href="#" class="linked-account-link">Manage linked accounts</a>
+
+                    <div class="settings-group" data-group="account">
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">Account</button>
+                      <div class="settings-group-body" hidden>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Lichess token</span>
+                            <span class="settings-item-desc">Needed for database data (peer and masters). Without it, only Maia3 is used. <br /><a href="https://lichess.org/account/oauth/token" target="_blank" rel="noopener noreferrer">Get your token</a></span>
+                          </span>
+                          <div class="eval-token-control">
+                            <div class="eval-token-row">
+                              <input id="eval-token" class="eval-token-input" type="password" autocomplete="off" spellcheck="false" aria-label="Lichess API token" />
+                              <button id="eval-token-check" type="button" class="eval-token-check">Connect</button>
+                              <button id="eval-token-clear" type="button" class="eval-token-clear">Disconnect</button>
+                            </div>
+                            <span id="eval-token-status" class="eval-token-status" role="status" aria-live="polite"></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
 <div class="settings-group" data-group="general">
-                      <button type="button" class="settings-group-toggle" aria-expanded="false">General Settings</button>
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">Theme and Board</button>
                       <div class="settings-group-body" hidden>
                         <div class="settings-item">
                           <span class="settings-item-label">
@@ -141,27 +149,93 @@
                         </label>
                       </div>
                     </div>
-                    <label class="settings-item" role="menuitemcheckbox" aria-checked="true">
-                      <span class="settings-item-label">
-                        <span class="settings-item-title">Legal move dots</span>
-                        <span class="settings-item-desc">Show destinations for the selected piece</span>
-                      </span>
-                      <input id="setting-show-dests" type="checkbox" checked />
-                      <span class="settings-switch" aria-hidden="true"></span>
-                    </label>
-                    <label class="settings-item" role="menuitemcheckbox" aria-checked="true">
-                      <span class="settings-item-label">
-                        <span class="settings-item-title">Last move highlight</span>
-                        <span class="settings-item-desc">Highlight the squares of the last move</span>
-                      </span>
-                      <input id="setting-show-last-move" type="checkbox" checked />
-                      <span class="settings-switch" aria-hidden="true"></span>
-                    </label>
 
-                    <div class="settings-legal">
-                      <p>64 Quarks is free software under the GNU AGPL v3 or later. <a href="https://github.com/rafalchojnacki/64-quarks" target="_blank" rel="noopener noreferrer">Source code</a> · <a href="https://github.com/rafalchojnacki/64-quarks/blob/master/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Third-party notices</a> · <a href="/licenses/AGPL-3.0.txt" target="_blank" rel="noopener noreferrer">License</a></p>
-                      <p>Opening data: Lichess.org (used with your token). Maia3 model: CSSLab, University of Toronto. DSC-23M-FEN model: ChessDS (Albert W. Hamood), CC BY 4.0, used for master move probabilities. Stockfish: GPL-3.0. Fonts Geist Sans and Geist Mono by Vercel: SIL OFL 1.1. Piece sets Staunty, Maestro and Cardinal by sadsnake1: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a> (non-commercial).</p>
-                      <p>Not affiliated with Lichess, CSSLab, or ChessDS. Do not use during games on Lichess.</p>
+                    <div class="settings-group" data-group="evaluation">
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">Evaluation</button>
+                      <div class="settings-group-body" hidden>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Lines</span>
+                            <span class="settings-item-desc">The number of lines shown</span>
+                          </span>
+                          <div id="eval-lines" class="eval-seg" role="group" aria-label="Number of lines"></div>
+                        </div>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Engine analysis effort</span>
+                            <span class="settings-item-desc">How many positions are analyzed by the engine</span>
+                          </span>
+                          <div id="eval-quality" class="eval-seg" role="group" aria-label="Engine analysis effort"></div>
+                        </div>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Peer rating</span>
+                            <span class="settings-item-desc">Reference rating for peer play. Peer database data uses the game's time control (blitz if unknown). Move estimates use the Maia3 AI model, which is conditioned on a Lichess player rating and does not use the game's time control.</span>
+                          </span>
+                          <div class="eval-dropdown settings-dropdown">
+                            <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
+                              <span id="eval-rating-label"></span>
+                              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg>
+                            </button>
+                            <ul id="eval-rating-list" class="eval-dd-list" role="listbox" aria-label="Peer rating" hidden></ul>
+                          </div>
+                        </div>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Evaluation reference data</span>
+                            <span id="eval-external-data-desc" class="settings-item-desc">When enabled, game databases (for peer and master data) and endgame tablebases serve as the primary evaluation source instead of engines and AI models. A Lichess access token is required.</span>
+                            <span id="eval-external-data-warning" class="eval-external-data-warning" hidden>⚠ Lichess token is not set</span>
+                          </span>
+                          <div id="eval-external-data" class="eval-seg" role="group" aria-label="Evaluation reference data"></div>
+                        </div>
+                        <div class="settings-divider"></div>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Results column</span>
+                            <span class="settings-item-desc">Which win/draw/loss result is shown</span>
+                          </span>
+                          <div id="eval-results-view" class="eval-seg" role="group" aria-label="Results column"></div>
+                        </div>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Play rate column</span>
+                            <span class="settings-item-desc">Which play-rate line is shown</span>
+                          </span>
+                          <div id="eval-prob-view" class="eval-seg" role="group" aria-label="Play rate column"></div>
+                        </div>
+                        <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Move preview</span>
+                            <span class="settings-item-desc">Show a small board when hovering a continuation move</span>
+                          </span>
+                          <input id="eval-preview" type="checkbox" />
+                          <span class="settings-switch" aria-hidden="true"></span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="settings-group" data-group="moves">
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">Move list</button>
+                      <div class="settings-group-body" hidden>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Layout</span>
+                            <span class="settings-item-desc">How main line moves and vartiations are shown</span>
+                          </span>
+                          <div id="moves-layout" class="eval-seg" role="group" aria-label="Move layout"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="settings-about">
+                      <div class="settings-legal">
+                        <p>64 Quarks is free software under the GNU AGPL v3 or later. <a href="https://github.com/rafalchojnacki/64-quarks" target="_blank" rel="noopener noreferrer">Source code</a> · <a href="https://github.com/rafalchojnacki/64-quarks/blob/master/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">Third-party notices</a> · <a href="/licenses/AGPL-3.0.txt" target="_blank" rel="noopener noreferrer">License</a></p>
+                        <div class="settings-legal-more" hidden>
+                          <p>Opening data: Lichess.org (used with your token). Maia3 model: CSSLab, University of Toronto. DSC-23M-FEN model: ChessDS (Albert W. Hamood), CC BY 4.0, used for master move probabilities. Stockfish: GPL-3.0. Fonts Geist Sans and Geist Mono by Vercel: SIL OFL 1.1. Piece sets Staunty, Maestro and Cardinal by sadsnake1: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a> (non-commercial).</p>
+                          <p>Not affiliated with Lichess, CSSLab, or ChessDS. Do not use during games on Lichess.</p>
+                        </div>
+                        <a href="#" id="settings-about-toggle" class="settings-legal-toggle">Show full notice</a>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -174,74 +248,7 @@
                       <input id="eval-toggle" type="checkbox" role="switch" aria-label="Show evaluation" />
                       <span class="eval-switch" aria-hidden="true"></span>
                     </label>
-                    <button id="eval-settings-btn" type="button" class="eval-icon-btn" title="Evaluation settings" aria-label="Evaluation settings" aria-expanded="false" aria-controls="eval-settings">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                      </svg>
-                    </button>
                   </div>
-                </div>
-                <div id="eval-settings" class="settings-menu section-popover" hidden>
-                  <div class="settings-header">Evaluation</div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Lines</span>
-                      <span class="settings-item-desc">The number of lines shown</span>
-                    </span>
-                    <div id="eval-lines" class="eval-seg" role="group" aria-label="Number of lines"></div>
-                  </div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Engine analysis effort</span>
-                      <span class="settings-item-desc">How many positions are analyzed by the engine</span>
-                    </span>
-                    <div id="eval-quality" class="eval-seg" role="group" aria-label="Engine analysis effort"></div>
-                  </div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Peer rating</span>
-                      <span class="settings-item-desc">Reference rating for peer play. Peer database data uses the game's time control (blitz if unknown). Move estimates use the Maia3 AI model, which is conditioned on a Lichess player rating and does not use the game's time control.</span>
-                    </span>
-                    <div class="eval-dropdown settings-dropdown">
-                      <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
-                        <span id="eval-rating-label"></span>
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" /></svg>
-                      </button>
-                      <ul id="eval-rating-list" class="eval-dd-list" role="listbox" aria-label="Peer rating" hidden></ul>
-                    </div>
-                  </div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Evaluation reference data</span>
-		      <span id="eval-external-data-desc" class="settings-item-desc">When enabled, game databases (for peer and master data) and endgame tablebases serve as the primary evaluation source instead of engines and AI models. A Lichess access token is required.</span>
-		      <span id="eval-external-data-warning" class="eval-external-data-warning" hidden>⚠ Lichess token is not set</span>
-                    </span>
-                    <div id="eval-external-data" class="eval-seg" role="group" aria-label="Evaluation reference data"></div>
-                  </div>
-                  <div class="settings-divider"></div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Results column</span>
-                      <span class="settings-item-desc">Which win/draw/loss result is shown</span>
-                    </span>
-                    <div id="eval-results-view" class="eval-seg" role="group" aria-label="Results column"></div>
-                  </div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Play rate column</span>
-                      <span class="settings-item-desc">Which play-rate line is shown</span>
-                    </span>
-                    <div id="eval-prob-view" class="eval-seg" role="group" aria-label="Play rate column"></div>
-                  </div>
-                  <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Move preview</span>
-                      <span class="settings-item-desc">Show a small board when hovering a continuation move</span>
-                    </span>
-                    <input id="eval-preview" type="checkbox" />
-                    <span class="settings-switch" aria-hidden="true"></span>
-                  </label>
                 </div>
                 <div class="analysis-panel-body">
                   <div id="eval-body" class="eval-body"></div>
@@ -252,22 +259,6 @@
                 <div class="eval-header">
                   <span class="eval-title">Moves</span>
                   <div class="eval-controls">
-                    <button id="moves-settings-btn" type="button" class="eval-icon-btn" title="Move list settings" aria-label="Move list settings" aria-expanded="false" aria-controls="moves-settings">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div id="moves-settings" class="settings-menu section-popover" hidden>
-                  <div class="settings-header">Move list</div>
-                  <div class="settings-item">
-                    <span class="settings-item-label">
-                      <span class="settings-item-title">Layout</span>
-                      <span class="settings-item-desc">How main line moves and vartiations are shown</span>
-                    </span>
-                    <div id="moves-layout" class="eval-seg" role="group" aria-label="Move layout"></div>
                   </div>
                 </div>
                 <div class="movies-panel-body">
@@ -309,52 +300,6 @@
         </div>
       </div>
     </main>
-    <div id="accounts-dialog" class="share-dialog accounts-dialog" role="dialog" aria-modal="true" aria-labelledby="accounts-dialog-title" hidden>
-      <div class="share-dialog-panel">
-        <h2 id="accounts-dialog-title">Linked accounts</h2>
-        <div class="settings-item">
-          <span class="settings-item-label">
-            <span class="settings-item-title">Lichess</span>
-            <span class="settings-item-desc">Token from <a href="https://lichess.org/account/oauth/token" target="_blank" rel="noopener noreferrer">lichess.org/account/oauth/token</a></span>
-          </span>
-          <div class="eval-token-control">
-            <div id="lichess-linked-display" class="linked-account-display" hidden>
-              <span id="lichess-modal-name" class="linked-account-user"></span>
-              <button id="lichess-unlink-link" type="button" class="eval-token-check">unlink</button>
-            </div>
-            <div id="lichess-link-form" class="eval-token-form">
-              <div class="eval-token-row">
-                <input id="eval-token" class="eval-token-input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste Lichess token" aria-label="Lichess API token" />
-                <button id="eval-token-check" type="button" class="eval-token-check">Link</button>
-              </div>
-              <span id="eval-token-status" class="eval-token-status" role="status" aria-live="polite"></span>
-            </div>
-          </div>
-        </div>
-        <div class="settings-item">
-          <span class="settings-item-label">
-            <span class="settings-item-title">Chess.com</span>
-            <span class="settings-item-desc">Chess.com username</span>
-          </span>
-          <div class="eval-token-control">
-            <div id="chesscom-linked-display" class="linked-account-display" hidden>
-              <span id="chesscom-modal-name" class="linked-account-user"></span>
-              <button id="chesscom-unlink-link" type="button" class="eval-token-check">unlink</button>
-            </div>
-            <div id="chesscom-link-form" class="eval-token-form">
-              <div class="eval-token-row">
-                <input id="chesscom-username" class="eval-token-input" type="text" autocomplete="off" spellcheck="false" placeholder="Chess.com username" aria-label="Chess.com username" />
-                <button id="chesscom-link" type="button" class="eval-token-check">Link</button>
-              </div>
-              <span id="chesscom-status" class="eval-token-status" role="status" aria-live="polite"></span>
-            </div>
-          </div>
-        </div>
-        <div class="share-dialog-actions">
-          <button id="accounts-close" type="button">Close</button>
-        </div>
-      </div>
-    </div>
     <div id="move-context-menu" class="move-context-menu" role="menu" hidden></div>
     <div id="import-dialog" class="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-dialog-title" hidden>
       <div class="import-dialog-panel">

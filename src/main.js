@@ -1610,31 +1610,6 @@ const sharePgnDownload = document.getElementById('share-pgn-download');
 const sharePgnVariations = document.getElementById('share-pgn-variations');
 const sharePgnAnnotations = document.getElementById('share-pgn-annotations');
 const shareClose = document.getElementById('share-close');
-const accountsDialog = document.getElementById('accounts-dialog');
-const accountsClose = document.getElementById('accounts-close');
-const manageAccountsLink = document.getElementById('manage-accounts-link');
-
-function openAccountsDialog() {
-  if (!accountsDialog) return;
-  closeSettings();
-  accountsDialog.hidden = false;
-}
-
-function closeAccountsDialog() {
-  if (!accountsDialog) return;
-  accountsDialog.hidden = true;
-}
-
-if (manageAccountsLink) {
-  manageAccountsLink.addEventListener('click', (e) => { e.preventDefault(); openAccountsDialog(); });
-}
-if (accountsClose) {
-  accountsClose.addEventListener('click', closeAccountsDialog);
-}
-if (accountsDialog) {
-  accountsDialog.addEventListener('click', (e) => { if (e.target === accountsDialog) closeAccountsDialog(); });
-}
-
 [shareFenInput, sharePgnInput].forEach((input) => {
   if (!input) return;
   input.addEventListener('click', () => input.select());
@@ -1876,7 +1851,7 @@ const settingsMenu = document.getElementById('settings-menu');
 const showDestsInput = document.getElementById('setting-show-dests');
 const showLastMoveInput = document.getElementById('setting-show-last-move');
 const metaPanelEl = document.getElementById('meta-panel');
-const themeButtons = document.querySelectorAll('.settings-theme-btn[data-theme-value]');
+const themeButtons = document.querySelectorAll('[data-theme-value]');
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
@@ -1898,7 +1873,7 @@ themeButtons.forEach((btn) => {
   btn.addEventListener('click', () => applyTheme(btn.dataset.themeValue));
 });
 
-const pieceButtons = document.querySelectorAll('.settings-piece-btn');
+const pieceButtons = document.querySelectorAll('[data-piece-value]');
 const PIECE_ABBREVS = ['wP', 'wN', 'wB', 'wR', 'wQ', 'wK', 'bP', 'bN', 'bB', 'bR', 'bQ', 'bK'];
 const VALID_PIECES = ['staunty', 'maestro', 'cardinal'];
 
@@ -1939,6 +1914,27 @@ settingsToggle.addEventListener('click', () => {
   }
 });
 
+// Collapsible, accordion-style groups inside the settings menu.
+// No group is expanded by default; expanding one collapses the others.
+const settingsGroups = Array.from(document.querySelectorAll('.settings-group'));
+function setSettingsGroupExpanded(group, expanded) {
+  const header = group.querySelector('.settings-group-toggle');
+  const body = group.querySelector('.settings-group-body');
+  if (!header || !body) return;
+  header.setAttribute('aria-expanded', String(expanded));
+  body.hidden = !expanded;
+  group.classList.toggle('is-expanded', expanded);
+}
+settingsGroups.forEach((group) => {
+  const header = group.querySelector('.settings-group-toggle');
+  if (!header) return;
+  header.addEventListener('click', () => {
+    const wasExpanded = header.getAttribute('aria-expanded') === 'true';
+    settingsGroups.forEach((g) => setSettingsGroupExpanded(g, false));
+    if (!wasExpanded) setSettingsGroupExpanded(group, true);
+  });
+});
+
 if (showDestsInput) {
   showDestsInput.checked = showDests;
   showDestsInput.closest('.settings-item')?.setAttribute('aria-checked', String(showDests));
@@ -1947,6 +1943,17 @@ if (showDestsInput) {
 if (showLastMoveInput) {
   showLastMoveInput.checked = showLastMove;
   showLastMoveInput.closest('.settings-item')?.setAttribute('aria-checked', String(showLastMove));
+}
+
+const aboutToggle = document.getElementById('settings-about-toggle');
+const aboutMore = document.querySelector('.settings-legal-more');
+if (aboutToggle && aboutMore) {
+  aboutToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    const expanded = !aboutMore.hidden;
+    aboutMore.hidden = expanded;
+    aboutToggle.textContent = expanded ? 'Show full notice' : 'Show less';
+  });
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

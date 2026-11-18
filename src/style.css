@@ -1093,7 +1093,7 @@ main {
   flex-wrap: wrap;
 }
 
-.linked-account-manage {
+.connected-account-manage {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1103,28 +1103,29 @@ main {
   min-width: 0;
 }
 
-.linked-accounts-manage-row {
+.connected-accounts-manage-row {
   display: flex;
   gap: 12px;
 }
 
-.linked-account-field-label {
+.connected-account-field-label {
   font-size: 12px;
   color: var(--text-dim);
 }
 
-.linked-account-display {
+.connected-account-display {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
-.linked-account-display .linked-account-link {
+.connected-account-display .connected-account-link {
   display: inline;
   padding: 0;
 }
 
-.linked-account-display[hidden] {
+.connected-account-display[hidden] {
   display: none;
 }
 
@@ -1135,19 +1136,62 @@ main {
 .accounts-dialog .settings-item {
   padding-left: 0;
   padding-right: 0;
+  align-items: flex-start;
+}
+
+.accounts-dialog .settings-item + .settings-item {
+  margin-top: 12px;
+}
+
+.accounts-dialog .settings-item:hover {
+  background: transparent;
+  cursor: default;
+}
+
+.accounts-dialog .eval-token-form {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+ .accounts-dialog .eval-token-form .eval-token-input {
+  flex: 0 1 180px;
+  min-width: 0;
+}
+
+.accounts-dialog .eval-token-control {
+  min-height: 40px;
+}
+
+.accounts-dialog .connected-account-display,
+.accounts-dialog .eval-token-form {
+  min-height: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  align-items: center;
+}
+
+.accounts-dialog .eval-token-form[hidden] {
+  display: none;
+}
+
+.accounts-dialog .eval-token-check {
+  align-self: flex-start;
 }
 
 
 
-.linked-account-manage {
+.connected-account-manage {
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   padding: 10px;
   background: color-mix(in srgb, var(--text-main) 3%, transparent);
 }
 
-.linked-account-manage-title {
-  font-size: 13px;
+.connected-account-manage-title {
+  font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1345,7 +1389,7 @@ main {
   gap: 8px;
 }
 
-.settings-widget button {
+.settings-widget > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1362,7 +1406,7 @@ main {
   transition: background-color 0.15s ease;
 }
 
-.settings-widget button:hover {
+.settings-widget > button:hover {
   background-color: var(--hover-bg);
 }
 
@@ -1456,6 +1500,60 @@ main {
   display: none;
 }
 
+.settings-group {
+  border-top: 1px solid var(--glass-border);
+}
+
+.settings-group:first-of-type {
+  border-top: none;
+}
+
+.settings-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-group-toggle::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--text-dim);
+  border-bottom: 1.5px solid var(--text-dim);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+  margin-left: 8px;
+}
+
+.settings-group.is-expanded .settings-group-toggle::after {
+  transform: rotate(-135deg);
+}
+
+.settings-group-toggle:hover {
+  color: var(--text-main);
+  background: var(--hover-bg);
+}
+
+.settings-group-body {
+  padding: 0 0 6px;
+}
+
+.settings-group-body[hidden] {
+  display: none;
+}
+
 .settings-header {
   padding: 10px 12px 8px;
   font-size: 11px;
@@ -1508,25 +1606,23 @@ main {
 .settings-switch {
   position: relative;
   flex-shrink: 0;
-  width: 38px;
-  height: 22px;
+  width: 34px;
+  height: 18px;
   border-radius: 999px;
-  background: var(--switch-off);
-  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.25);
-  transition: background-color 0.18s ease;
+  background: color-mix(in srgb, var(--text-dim) 35%, transparent);
+  transition: background 0.15s ease;
 }
 
 .settings-switch::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  transition: transform 0.18s ease;
+  background: var(--text-main);
+  transition: transform 0.15s ease;
 }
 
 .settings-item input:checked ~ .settings-switch {
@@ -1543,48 +1639,6 @@ main {
   background: var(--glass-border);
 }
 
-.settings-theme-buttons {
-  flex-shrink: 0;
-  max-width: 100%;
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 3px;
-  padding: 3px;
-  background: var(--seg-track, rgba(0, 0, 0, 0.22));
-  border: 1px solid var(--glass-border);
-  border-radius: 9px;
-}
-
-.settings-theme-buttons[aria-label="Page style"] {
-  flex-wrap: nowrap;
-}
-
-.settings-theme-btn {
-  padding: 5px 12px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.settings-theme-btn:hover {
-  color: var(--text-main);
-  background: var(--hover-bg);
-}
-
-.settings-theme-btn[aria-pressed="true"] {
-  color: var(--on-accent);
-  background: var(--accent-btn, var(--accent));
-  box-shadow: 0 2px 8px -3px var(--accent-shadow);
-}
-
 .timer-widget {
   position: fixed;
   bottom: 16px;
@@ -1594,12 +1648,6 @@ main {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-}
-
-@media (max-width: 560px) {
-  .settings-theme-buttons[aria-label="Page style"] {
-    flex-wrap: wrap;
-  }
 }
 
 .timer-widget button {
@@ -1954,7 +2002,7 @@ main {
   min-width: 30px;
   padding: 3px 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   background: transparent;
   border: 0;
@@ -2000,7 +2048,7 @@ main {
   width: 100%;
   padding: 4px 8px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-main);
   background: color-mix(in srgb, var(--text-main) 6%, transparent);
   border: 1px solid color-mix(in srgb, var(--text-dim) 35%, transparent);
@@ -2341,14 +2389,15 @@ main {
 }
 
 .eval-token-input {
-  width: 150px;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent);
   background: transparent;
   color: var(--text-main);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .eval-token-check {
@@ -2369,6 +2418,30 @@ main {
 .eval-token-check:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.eval-token-check.is-loading {
+  position: relative;
+  color: transparent;
+  cursor: default;
+}
+
+.eval-token-check.is-loading::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: eval-spin 0.8s linear infinite;
+}
+
+@keyframes eval-spin {
+  to { transform: rotate(360deg); }
 }
 
 .eval-token-clear {
@@ -2405,6 +2478,14 @@ main {
   margin: 0 0 4px;
 }
 
+.settings-legal-toggle {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-decoration: underline;
+  display: inline-block;
+  margin-top: 4px;
+}
+
 .eval-token-status {
   min-height: 1em;
   font-size: 11px;
@@ -2424,22 +2505,28 @@ main {
   color: var(--text-dim);
 }
 
-.linked-accounts {
+.connected-accounts {
   display: flex;
   gap: 8px;
   padding: 6px 0 2px 12px;
   justify-content: flex-end;
   margin-left: auto;
   width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
 }
 
-.linked-account {
+.connected-account {
   flex: 0 0 auto;
-  max-width: 180px;
+  min-width: 0;
   padding: 8px 0 8px 8px;
 }
 
-.linked-account {
+.connected-accounts .connected-account:last-child {
+  padding-right: 12px;
+}
+
+.connected-account {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -2448,7 +2535,7 @@ main {
   padding: 8px;
 }
 
-.linked-account-icon {
+.connected-account-icon {
   width: 100%;
   min-height: 48px;
   display: flex;
@@ -2461,19 +2548,19 @@ main {
   padding: 6px 8px;
 }
 
-.linked-account-icon svg {
+.connected-account-icon svg {
   flex: none;
 }
 
-.linked-account-icon svg.is-dim {
+.connected-account-icon svg.is-dim {
   opacity: 0.4;
 }
 
-.linked-account-user.is-dim {
+.connected-account-user.is-dim {
   opacity: 0.4;
 }
 
-.linked-account-text {
+.connected-account-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2481,21 +2568,21 @@ main {
   min-width: 0;
 }
 
-.linked-account-head {
+.connected-account-head {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.linked-account-logo,
-.linked-account-badge {
+.connected-account-logo,
+.connected-account-badge {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.linked-account-badge {
+.connected-account-badge {
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -2506,48 +2593,48 @@ main {
   text-transform: lowercase;
 }
 
-.linked-account-name-label {
+.connected-account-name-label {
   font-size: 11px;
   font-weight: 400;
   color: var(--text-dim);
   font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-.linked-account-user {
-  font-size: 15px;
+.connected-account-user {
+  font-size: 14px;
   font-weight: 400;
   color: var(--text-muted);
   min-height: 1.2em;
-  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: "Geist Sans", sans-serif;
   white-space: nowrap;
 }
 
-.linked-account-user.is-linked {
+.connected-account-user.is-connected {
   color: var(--text-main);
 }
 
-.linked-account-user-row {
+.connected-account-user-row {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
 }
 
-.linked-account-user.is-linked {
+.connected-account-user.is-connected {
   color: var(--text-main);
   font-weight: 400;
 }
 
-.linked-account-hint {
+.connected-account-hint {
   font-size: 10px;
   color: var(--text-dim);
 }
 
-.linked-account-hint a {
+.connected-account-hint a {
   color: var(--accent);
 }
 
-.linked-account-link {
+.connected-account-link {
   display: inline;
   border: none;
   background: transparent;
@@ -2565,15 +2652,15 @@ main {
   padding: 0 8px 12px;
 }
 
-.linked-account-link:hover {
+.connected-account-link:hover {
   text-decoration: underline;
 }
 
-.linked-account-form[hidden] {
+.connected-account-form[hidden] {
   display: none;
 }
 
-.linked-account-form {
+.connected-account-form {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -2874,4 +2961,8 @@ a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+.accounts-dialog .connected-account-display {
+  align-items: flex-start !important;
 }

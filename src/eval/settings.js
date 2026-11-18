@@ -33,7 +33,7 @@ export const RESULT_VIEWS = [
 ];
 
 // token is an optional Lichess API token. Empty means anonymous access.
-export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, playRateView: 'masters', resultsView: 'peers', preview: false, token: '', externalData: 'off' };
+export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, playRateView: 'masters', resultsView: 'peers', preview: false, token: '', lichessUsername: '', externalData: 'off' };
 
 const STORAGE_KEY = '64-quarks.eval';
 
@@ -71,6 +71,7 @@ export function normalizeSettings(value) {
     resultsView: RESULT_VIEWS.some((view) => view.value === resultsView) ? resultsView : DEFAULT_SETTINGS.resultsView,
     preview: source.preview === true,
     token: typeof source.token === 'string' ? source.token.trim() : DEFAULT_SETTINGS.token,
+    lichessUsername: typeof source.lichessUsername === 'string' ? source.lichessUsername.trim() : DEFAULT_SETTINGS.lichessUsername,
     externalData: EXTERNAL_DATA_MODES.includes(externalData) ? externalData : DEFAULT_SETTINGS.externalData,
   };
 }

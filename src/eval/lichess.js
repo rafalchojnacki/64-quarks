@@ -124,6 +124,27 @@ export function validateLichessToken(token) {
   });
 }
 
+// Fetches the account behind a token, so the connected username can be shown.
+// Resolves with the username string, or throws a LichessError.
+export function fetchLichessAccount(token) {
+  return enqueue(async () => {
+    let response;
+    try {
+      response = await fetch('https://lichess.org/api/account', { headers: authHeaders(token) });
+    } catch {
+      throw new LichessError('network error, try again');
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new LichessError('Lichess rejected this token');
+    }
+    if (response.status === 429) throw new LichessError('rate limited, try again later');
+    if (!response.ok) throw new LichessError(`Lichess returned HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data || !data.username) throw new LichessError('Lichess did not return a username');
+    return data.username;
+  });
+}
+
 // Lichess games for the position, limited to the rating group of `rating` and
 // to games of the same speed (bullet, blitz, rapid or classical). The speed is
 // derived from the game's PGN TimeControl (see gameSpeed/speedForTimeControl)

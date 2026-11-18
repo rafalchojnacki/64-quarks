@@ -45,7 +45,7 @@ export function initMovesSettings(layout, onChange, doc = document) {
   const button = doc.getElementById('moves-settings-btn');
   const menu = doc.getElementById('moves-settings');
   const container = doc.getElementById('moves-layout');
-  if (!button || !menu || !container) return;
+  if (!container) return;
 
   const group = segmentedGroup(
     container,
@@ -58,20 +58,22 @@ export function initMovesSettings(layout, onChange, doc = document) {
   );
   group.setValue(layout);
 
-  const setOpen = (open) => {
-    if (open) positionPopover(menu, button);
-    menu.hidden = !open;
-    button.setAttribute('aria-expanded', String(open));
-  };
+  if (button && menu) {
+    const setOpen = (open) => {
+      if (open) positionPopover(menu, button);
+      menu.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+    };
 
-  button.addEventListener('click', () => setOpen(menu.hidden));
-  window.addEventListener('resize', () => {
-    if (!menu.hidden) positionPopover(menu, button);
-  });
+    button.addEventListener('click', () => setOpen(menu.hidden));
+    window.addEventListener('resize', () => {
+      if (!menu.hidden) positionPopover(menu, button);
+    });
 
-  doc.addEventListener('click', (event) => {
-    if (!menu.hidden && !menu.contains(event.target) && !button.contains(event.target)) {
-      setOpen(false);
-    }
-  });
+    doc.addEventListener('click', (event) => {
+      if (!menu.hidden && !menu.contains(event.target) && !button.contains(event.target)) {
+        setOpen(false);
+      }
+    });
+  }
 }
