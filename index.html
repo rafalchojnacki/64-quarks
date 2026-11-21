@@ -147,19 +147,20 @@
                           <input id="setting-show-last-move" type="checkbox" checked />
                           <span class="settings-switch" aria-hidden="true"></span>
                         </label>
+                        <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Move preview</span>
+                            <span class="settings-item-desc">Show a small board when hovering a continuation move</span>
+                          </span>
+                          <input id="eval-preview" type="checkbox" />
+                          <span class="settings-switch" aria-hidden="true"></span>
+                        </label>
                       </div>
                     </div>
 
-                    <div class="settings-group" data-group="evaluation">
+                    <div class="settings-group" data-group="analysis">
                       <button type="button" class="settings-group-toggle" aria-expanded="false">Analysis</button>
                       <div class="settings-group-body" hidden>
-                        <div class="settings-item">
-                          <span class="settings-item-label">
-                            <span class="settings-item-title">Lines</span>
-                            <span class="settings-item-desc">The number of lines shown</span>
-                          </span>
-                          <div id="eval-lines" class="eval-seg" role="group" aria-label="Number of lines"></div>
-                        </div>
                         <div class="settings-item">
                           <span class="settings-item-label">
                             <span class="settings-item-title">Engine analysis effort</span>
@@ -188,7 +189,18 @@
                           </span>
                           <div id="eval-external-data" class="eval-seg" role="group" aria-label="Evaluation reference data"></div>
                         </div>
-                        <div class="settings-divider"></div>
+                      </div>
+                    </div>
+                    <div class="settings-group" data-group="evaluation-view">
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">Evaluation</button>
+                      <div class="settings-group-body" hidden>
+                        <div class="settings-item">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Lines</span>
+                            <span class="settings-item-desc">The number of lines shown</span>
+                          </span>
+                          <div id="eval-lines" class="eval-seg" role="group" aria-label="Number of lines"></div>
+                        </div>
                         <div class="settings-item">
                           <span class="settings-item-label">
                             <span class="settings-item-title">Results column</span>
@@ -203,14 +215,11 @@
                           </span>
                           <div id="eval-prob-view" class="eval-seg" role="group" aria-label="Play rate column"></div>
                         </div>
-                        <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
-                          <span class="settings-item-label">
-                            <span class="settings-item-title">Move preview</span>
-                            <span class="settings-item-desc">Show a small board when hovering a continuation move</span>
-                          </span>
-                          <input id="eval-preview" type="checkbox" />
-                          <span class="settings-switch" aria-hidden="true"></span>
-                        </label>
+                      </div>
+                    </div>
+                    <div class="settings-group" data-group="games-explorer">
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">Games Explorer</button>
+                      <div class="settings-group-body" hidden>
                         <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
                           <span class="settings-item-label">
                             <span class="settings-item-title">Explorer scores</span>
