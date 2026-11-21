@@ -384,6 +384,7 @@ export class EvalPanel {
     this.ratingLabel = doc.getElementById('eval-rating-label');
     this.ratingList = doc.getElementById('eval-rating-list');
     this.previewInput = doc.getElementById('eval-preview');
+    this.explorerScoresInput = doc.getElementById('explorer-scores');
     this.tokenInput = doc.getElementById('eval-token');
     this.tokenCheck = doc.getElementById('eval-token-check');
     this.tokenClear = doc.getElementById('eval-token-clear');
@@ -501,6 +502,7 @@ export class EvalPanel {
     this.bindPick();
     if (this.toggle) this.toggle.addEventListener('change', () => this.setEnabled(this.toggle.checked));
     this.previewInput.addEventListener('change', () => this.updateSettings({ preview: this.previewInput.checked }));
+    this.explorerScoresInput?.addEventListener('change', () => this.updateSettings({ explorerScores: this.explorerScoresInput.checked }));
     // The token is applied only after Check validates it (see checkToken).
     this.tokenCheck?.addEventListener('click', (event) => { event.preventDefault(); this.checkToken(); });
     this.tokenClear?.addEventListener('click', (event) => { event.preventDefault(); this.clearToken(); });
@@ -763,7 +765,10 @@ export class EvalPanel {
     // The preview setting only affects display. Any other setting changes the
     // analysis, so the remembered evaluations are no longer valid.
     if (Object.keys(patch).some((key) => key !== 'preview')) this.cache.clear();
-    if (this.enabled && !('preview' in patch)) this.run();
+    if (!('preview' in patch)) {
+      if (this.mode === 'evaluation') this.run();
+      if (this.mode === 'explorer') this.runExplorer();
+    }
     if (!this.settings.preview) this.hidePreview();
   }
 
@@ -776,6 +781,7 @@ export class EvalPanel {
     this.resultsViewGroup.setValue(this.settings.resultsView);
     this.externalDataGroup.setValue(this.settings.externalData);
     this.previewInput.checked = this.settings.preview;
+    if (this.explorerScoresInput) this.explorerScoresInput.checked = this.settings.explorerScores;
     this.tokenInput.value = this.settings.token;
     this.tokenInput.placeholder = this.settings.token ? '' : 'Not set';
     this.updateTokenButtons();
@@ -847,7 +853,8 @@ export class EvalPanel {
       const scoreKey = `${this.settings.quality}|${ucis.join(' ')}|${this.fen}`;
       const cachedScores = this.explorerScores.get(scoreKey) ?? null;
       this.explorerView = { state: 'done', fen: this.fen, moves: shown, others, total: db.total, source: this.explorerSource, engineScores: cachedScores, errors: [] };
-      if (!cachedScores) this.scoreExplorer(runId, scoreKey, ucis);
+      if (!this.settings.explorerScores) this.engine?.cancel();
+      else if (!cachedScores) this.scoreExplorer(runId, scoreKey, ucis);
     } catch (error) {
       if (runId !== this.runId) return;
       this.explorerView = { state: 'error', fen: this.fen, moves: [], total: 0, source: this.explorerSource, message: error.message, errors: [error.message] };
@@ -865,7 +872,7 @@ export class EvalPanel {
       const result = await this.engine.analyze({
         fen,
         multiPV: ucis.length,
-        nodes: QUALITY_LEVELS[this.settings.quality].nodes,
+        nodes: QUALITY_LEVELS[this.settings.quality].nodes * ucis.length,
         searchMoves: ucis,
       });
       if (runId !== this.runId || this.mode !== 'explorer' || !this.explorerView) return;
@@ -933,11 +940,14 @@ export class EvalPanel {
     const header = el('div', 'eval-columns');
     header.setAttribute('aria-hidden', 'true');
     const label = (text) => el('span', 'eval-col-label', text);
-    const spans = [el('span', 'eval-col eval-col-move'), el('span', 'eval-col eval-col-score'), el('span', 'eval-col eval-col-wdl'), el('span', 'eval-col eval-col-circles')];
+    const showScores = this.settings.explorerScores;
+    const spans = [el('span', 'eval-col eval-col-move')];
+    if (showScores) spans.push(el('span', 'eval-col eval-col-score'));
+    spans.push(el('span', 'eval-col eval-col-wdl'), el('span', 'eval-col eval-col-circles'));
     header.append(...spans);
-    const score = header.children[1]; score.append(label('Score'));
-    const wdl = header.children[2]; wdl.append(label('Results'));
-    const circles = header.children[3]; circles.append(label('Play rate'));
+    if (showScores) header.querySelector('.eval-col-score').append(label('Score'));
+    header.querySelector('.eval-col-wdl').append(label('Results'));
+    header.querySelector('.eval-col-circles').append(label('Play rate'));
     this.body.append(header);
 
     const total = view.total || view.moves.reduce((s, m) => s + m.games, 0);
@@ -1016,7 +1026,9 @@ export class EvalPanel {
         scoreWrap.append(el('span', 'eval-empty-inline', '—'));
       }
       const primary = el('div', 'eval-primary');
-      primary.append(moveEl, scoreWrap, wdlWrap, circlesWrap);
+      primary.append(moveEl);
+      if (showScores) primary.append(scoreWrap);
+      primary.append(wdlWrap, circlesWrap);
       row.append(primary);
       row.append(this.buildContinuationPlaceholder());
       this.body.append(row);
@@ -1117,7 +1129,7 @@ export class EvalPanel {
       result = await this.engine.analyze({
         fen,
         multiPV: count,
-        nodes: QUALITY_LEVELS[quality].nodes,
+        nodes: QUALITY_LEVELS[quality].nodes * count,
         onUpdate: (lines) => {
           if (runId !== this.runId) return;
           this.view = { ...this.view, state: 'searching', fen, lines };
