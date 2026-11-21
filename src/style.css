@@ -1990,8 +1990,33 @@ main {
 
 .eval-explorer-source {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   padding: 4px 0 0;
+}
+
+.eval-explorer-tempo {
+  min-width: 118px;
+}
+
+.eval-explorer-tempo[hidden] {
+  display: none;
+}
+
+.eval-explorer-tempo.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.eval-explorer-tempo .eval-dd-btn,
+.eval-explorer-tempo .eval-dd-item {
+  font-family: "Geist Sans", sans-serif;
+  font-size: 11px;
+}
+
+.eval-explorer-tempo .eval-dd-list {
+  min-width: 118px;
 }
 
 #analysis-mode .eval-seg-btn,

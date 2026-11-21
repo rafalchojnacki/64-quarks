@@ -9,6 +9,7 @@ import {
   isTablebaseAvailable,
   tablebaseMoveScore,
   gameSpeed,
+  speedForTimeControl,
   validateLichessToken,
   fetchLichessAccount,
   fetchLichessRatings,
@@ -374,7 +375,7 @@ export class EvalPanel {
       [
         { value: 'off', label: 'Off' },
         { value: 'evaluation', label: 'Evaluation' },
-        { value: 'explorer', label: 'Games explorer' },
+        { value: 'explorer', label: 'Games database' },
       ],
       (value) => this.setMode(value),
     );
@@ -408,6 +409,7 @@ export class EvalPanel {
     this.enabled = false;
     this.mode = 'off';
     this.explorerSource = 'masters';
+    this.explorerLichessSpeed = 'all';
     this.explorerView = null;
     // Stockfish scores of explorer moves, by quality, line count and FEN.
     this.explorerScores = new Map();
@@ -636,6 +638,18 @@ export class EvalPanel {
     this.speed = speed;
     if (this.mode === 'evaluation' && this.enabled) this.run();
     if (this.mode === 'explorer') this.runExplorer();
+  }
+
+  setExplorerLichessSpeedFromTimeControl(timeControl, { run = true } = {}) {
+    this.setExplorerLichessSpeed(speedForTimeControl(timeControl) ?? 'all', { run });
+  }
+
+  setExplorerLichessSpeed(value, { run = true } = {}) {
+    const allowed = new Set(['all', 'ultraBullet', 'bullet', 'blitz', 'rapid', 'classical', 'correspondence']);
+    const next = allowed.has(value) ? value : 'all';
+    if (next === this.explorerLichessSpeed) return;
+    this.explorerLichessSpeed = next;
+    if (run && this.mode === 'explorer' && this.explorerSource === 'lichess') this.runExplorer();
   }
 
   // Without a Lichess token the setting is read-only and the warning explains why.
@@ -868,7 +882,7 @@ export class EvalPanel {
     try {
       const db = this.explorerSource === 'masters'
         ? await fetchMastersDatabase({ fen: this.fen, token })
-        : await fetchPeerDatabase({ fen: this.fen, rating: this.effectivePeerRating(), speed: this.speed, token });
+        : await fetchPeerDatabase({ fen: this.fen, rating: this.effectivePeerRating(), speed: this.explorerLichessSpeed === 'all' ? 'ultraBullet,bullet,blitz,rapid,classical,correspondence' : this.explorerLichessSpeed, token });
       if (runId !== this.runId) return;
       const moves = [...(db.moves?.entries?.() ?? [])]
         .map(([uci, counts]) => ({ uci, counts, games: gamesOf(counts) }))
@@ -938,7 +952,81 @@ export class EvalPanel {
     );
     this.explorerSourceGroup.setValue(this.explorerSource);
     const srcWrap = el('div', 'eval-explorer-source');
-    srcWrap.append(srcContainer);
+    const tempoWrap = el('div', 'eval-explorer-tempo eval-dropdown');
+    const tempoOptions = [
+      { value: 'all', label: 'All' },
+      { value: 'ultraBullet', label: 'UltraBullet' },
+      { value: 'bullet', label: 'Bullet' },
+      { value: 'blitz', label: 'Blitz' },
+      { value: 'rapid', label: 'Rapid' },
+      { value: 'classical', label: 'Classical' },
+      { value: 'correspondence', label: 'Correspondence' },
+    ];
+    const speedLabel = (value) => tempoOptions.find((option) => option.value === value)?.label ?? 'All';
+
+    const tempoBtn = el('button', 'eval-dd-btn');
+    tempoBtn.type = 'button';
+    tempoBtn.setAttribute('aria-haspopup', 'listbox');
+    tempoBtn.setAttribute('aria-expanded', 'false');
+    const tempoBtnLabel = el('span', '', speedLabel(this.explorerLichessSpeed));
+    const tempoArrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    tempoArrow.setAttribute('viewBox', '0 0 24 24');
+    tempoArrow.setAttribute('aria-hidden', 'true');
+    const tempoArrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    tempoArrowPath.setAttribute('fill', 'none');
+    tempoArrowPath.setAttribute('stroke', 'currentColor');
+    tempoArrowPath.setAttribute('stroke-width', '2');
+    tempoArrowPath.setAttribute('stroke-linecap', 'round');
+    tempoArrowPath.setAttribute('stroke-linejoin', 'round');
+    tempoArrowPath.setAttribute('d', 'M6 9l6 6 6-6');
+    tempoArrow.append(tempoArrowPath);
+    tempoBtn.append(tempoBtnLabel, tempoArrow);
+
+    const tempoList = el('ul', 'eval-dd-list');
+    tempoList.setAttribute('role', 'listbox');
+    tempoList.setAttribute('aria-label', 'Lichess game tempo');
+    tempoList.hidden = true;
+    for (const option of tempoOptions) {
+      const item = el('li', 'eval-dd-item', option.label);
+      item.setAttribute('role', 'option');
+      item.dataset.value = option.value;
+      if (option.value === this.explorerLichessSpeed) item.classList.add('selected');
+      item.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.setExplorerLichessSpeed(option.value);
+        tempoBtnLabel.textContent = speedLabel(this.explorerLichessSpeed);
+        tempoList.querySelectorAll('.eval-dd-item').forEach((entry) => {
+          entry.classList.toggle('selected', entry.dataset.value === this.explorerLichessSpeed);
+        });
+        tempoList.hidden = true;
+        tempoBtn.setAttribute('aria-expanded', 'false');
+      });
+      tempoList.append(item);
+    }
+
+    tempoBtn.addEventListener('click', (event) => {
+      if (tempoBtn.disabled) return;
+      event.stopPropagation();
+      const open = tempoList.hidden;
+      tempoList.hidden = !open;
+      tempoBtn.setAttribute('aria-expanded', String(open));
+    });
+
+    if (this._tempoOutsideHandler) document.removeEventListener('click', this._tempoOutsideHandler);
+    this._tempoOutsideHandler = (event) => {
+      if (!tempoWrap.contains(event.target)) {
+        tempoList.hidden = true;
+        tempoBtn.setAttribute('aria-expanded', 'false');
+      }
+    };
+    document.addEventListener('click', this._tempoOutsideHandler);
+
+    tempoWrap.append(tempoBtn, tempoList);
+    const mastersView = this.explorerSource === 'masters';
+    tempoWrap.classList.toggle('is-disabled', mastersView);
+    tempoBtn.disabled = mastersView;
+    tempoBtnLabel.textContent = mastersView ? '(Classical only)' : speedLabel(this.explorerLichessSpeed);
+    srcWrap.append(srcContainer, tempoWrap);
     this.body.append(srcWrap);
 
     const view = this.explorerView;

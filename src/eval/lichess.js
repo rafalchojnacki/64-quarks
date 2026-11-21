@@ -31,16 +31,18 @@ export const FALLBACK_SPEED = 'blitz';
 // speeds shown in the UI are the only ones used. Returns null when the value is
 // missing or not a clock time control (e.g. "-" or "1/86400").
 export function speedForTimeControl(value) {
-  const match = /^(\d+)(?:\+(\d+))?$/.exec(String(value ?? '').trim());
+  const text = String(value ?? '').trim();
+  if (/^\d+\/\d+$/.test(text)) return 'correspondence';
+  const match = /^(\d+)(?:\+(\d+))?$/.exec(text);
   if (!match) return null;
   const estimated = Number(match[1]) + 40 * Number(match[2] ?? 0);
+  if (estimated < 30) return 'ultraBullet';
   if (estimated < 180) return 'bullet';
   if (estimated < 480) return 'blitz';
   if (estimated < 1500) return 'rapid';
   return 'classical';
 }
 
-// Speed for the open game: its own class, or the blitz reference if unknown.
 export function gameSpeed(timeControl) {
   return speedForTimeControl(timeControl) ?? FALLBACK_SPEED;
 }
@@ -168,7 +170,7 @@ export function fetchLichessRatings(token) {
     const data = await response.json();
     const perfs = data?.perfs || {};
     const get = (key) => (perfs[key] && typeof perfs[key].rating === 'number' ? perfs[key].rating : null);
-    return { bullet: get('bullet'), blitz: get('blitz'), rapid: get('rapid'), classical: get('classical') };
+    return { ultraBullet: get('ultraBullet'), bullet: get('bullet'), blitz: get('blitz'), rapid: get('rapid'), classical: get('classical'), correspondence: get('correspondence') };
   });
 }
 
