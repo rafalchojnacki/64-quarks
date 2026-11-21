@@ -33,7 +33,8 @@ export const RESULT_VIEWS = [
 ];
 
 // token is an optional Lichess API token. Empty means anonymous access.
-export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 'auto', playRateView: 'masters', resultsView: 'peers', preview: false, token: '', lichessUsername: '', externalData: 'off', explorerScores: true, lichessRatings: null };
+
+export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 'auto', playRateView: 'both', resultsView: 'peers', preview: false, token: '', lichessUsername: '', externalData: 'off', explorerScores: true, lichessRatings: null };
 
 const STORAGE_KEY = '64-quarks.eval';
 
