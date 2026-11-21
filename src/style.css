@@ -2730,6 +2730,10 @@ main {
   overflow-wrap: anywhere;
 }
 
+.eval-continuation-eval {
+  min-height: 17px;
+}
+
 .eval-cont-move {
   padding: 0 2px;
   font: inherit;
@@ -2832,7 +2836,7 @@ main {
 .eval-skeleton-cont {
   display: block;
   width: 80%;
-  height: 10px;
+  height: 17px;
 }
 
 @keyframes eval-shimmer {

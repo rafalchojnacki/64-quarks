@@ -496,14 +496,11 @@ export class EvalPanel {
   // the click then targets the container. The move is therefore remembered on
   // mousedown, and used when the click reaches the container.
   bindPick() {
-    let pressed = null;
+    // Trigger on mousedown (not click): rows are rebuilt while the engine
+    // streams, so a click can be lost when its target node is replaced
+    // between mousedown and click.
     this.body.addEventListener('mousedown', (event) => {
-      pressed = event.target.closest?.('[data-pick]')?.dataset.pick ?? null;
-    });
-    this.body.addEventListener('click', (event) => {
-      const node = event.target.closest?.('[data-pick]');
-      const ucis = node ? node.dataset.pick : pressed;
-      pressed = null;
+      const ucis = event.target.closest?.('[data-pick]')?.dataset.pick;
       if (ucis) this.onPickLine?.(ucis.split(' '));
     });
   }
@@ -946,16 +943,38 @@ export class EvalPanel {
 
     const view = this.explorerView;
     if (!view || view.state === 'loading') {
-      for (let i = 0; i < this.settings.lines; i += 1) {
+      const showScores = this.settings.explorerScores;
+      // Reserve the header and the full set of move slots up front, so the
+      // layout does not shift when the database response arrives.
+      const header = el('div', 'eval-columns');
+      header.setAttribute('aria-hidden', 'true');
+      const label = (text) => el('span', 'eval-col-label', text);
+      const spans = [el('span', 'eval-col eval-col-move')];
+      if (showScores) spans.push(el('span', 'eval-col eval-col-score'));
+      spans.push(el('span', 'eval-col eval-col-wdl'), el('span', 'eval-col eval-col-circles'));
+      header.append(...spans);
+      if (showScores) header.querySelector('.eval-col-score').append(label('Score'));
+      header.querySelector('.eval-col-wdl').append(label('Results'));
+      header.querySelector('.eval-col-circles').append(label('Play rate'));
+      this.body.append(header);
+
+      for (let i = 0; i < EXPLORER_MOVES; i += 1) {
         const row = el('div', 'eval-line eval-line-pending');
         row.setAttribute('aria-hidden', 'true');
         const primary = el('div', 'eval-primary');
-        primary.append(
-          el('span', 'eval-skeleton eval-skeleton-move'),
-          el('span', 'eval-skeleton eval-skeleton-wdl'),
-          el('span', 'eval-skeleton eval-skeleton-circles'),
-        );
-        row.append(primary);
+        primary.append(el('span', 'eval-skeleton eval-skeleton-move'));
+        if (showScores) {
+          const scoreWrap = el('span', 'eval-score-wrap');
+          scoreWrap.append(el('span', 'eval-skeleton eval-skeleton-score'), el('span', 'eval-source-slot'));
+          primary.append(scoreWrap);
+        }
+        primary.append(placeholderWdl());
+        const circlesPair = el('div', 'eval-circles-pair');
+        const circlesWrap = el('div', 'eval-circles-wrap');
+        circlesWrap.append(el('span', 'eval-skeleton eval-skeleton-circles'), el('span', 'eval-source-slot'));
+        circlesPair.append(circlesWrap, el('span', 'eval-games-count', '\u00A0'));
+        primary.append(circlesPair);
+        row.append(primary, this.buildContinuationPlaceholder());
         this.body.append(row);
       }
       return;
@@ -1100,7 +1119,11 @@ export class EvalPanel {
     // Both engines are initialized before the search starts: Stockfish is started,
     // and the Maia3 model is downloaded and loaded (its progress is shown). Only then
     // does the search begin, so the first evaluation does not wait for Maia3 later.
-    this.view = { state: 'loading', fen, lines: [], maia: null, errors: [] };
+    // Keep the previous lines around while the new search starts, so the panel
+    // does not blank out between positions; they are replaced as soon as the
+    // engine streams the first update.
+    const previousLines = this.view?.lines?.length ? this.view.lines : [];
+    this.view = { state: 'loading', fen, lines: previousLines, maia: null, errors: [] };
     this.render();
 
     // Consult the tablebase first: when the position is resolved there, the
@@ -1158,7 +1181,8 @@ export class EvalPanel {
       this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null, errors: [] };
       this.render();
     } else {
-      this.view = { state: 'searching', fen, lines: [], progress: 0 };
+      const previousLines = this.view?.lines?.length ? this.view.lines : [];
+      this.view = { state: 'searching', fen, lines: previousLines, progress: 0 };
       this.render();
       result = await this.engine.analyze({
         fen,
@@ -1526,7 +1550,9 @@ export class EvalPanel {
 
     const lines = view.lines;
     const scoredAll = view.state === 'done' ? view.scored : null;
-    if (lines.length) this.body.append(this.columnHeader());
+    if (lines.length || view.state === 'loading' || view.state === 'scoring') {
+      this.body.append(this.columnHeader());
+    }
     // Keep the configured number of rows while searching/scoring, so the panel
     // height stays stable as lines arrive. Only when the search is finished and
     // the position actually has fewer legal moves than configured do we drop the
@@ -1559,6 +1585,7 @@ export class EvalPanel {
 
   renderPlaceholders() {
     this.body.append(this.progressSlot(null));
+    this.body.append(this.columnHeader());
     for (let index = 0; index < this.settings.lines; index += 1) {
       this.body.append(this.placeholderLine());
     }
@@ -1657,7 +1684,7 @@ export class EvalPanel {
   // Each ply is a button. Clicking one plays the line up to it in the move list;
   // hovering or focusing it shows a preview of the position after that ply.
   buildContinuation(pv, parts) {
-    const wrap = el('div', 'eval-continuation');
+    const wrap = el('div', 'eval-continuation eval-continuation-eval');
     parts.forEach((part, index) => {
       if (index > 0) wrap.append(' ');
       const label = part.color === 'w' ? `${part.moveNumber}. ${part.san}` : part.san;
