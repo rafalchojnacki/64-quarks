@@ -15,7 +15,7 @@ move tree, and see engine lines with human-likelihood data.
 - Maia3 human-move estimates where the database has too few games (marked `E`).
 - DSC-23M-FEN (ChessDS) master-focused human-move estimates for the Masters
   probability column where the Masters database has too few games (marked `E`).
-- Five page themes and two piece sets.
+- Five page themes and three piece sets.
 
 ## Evaluation models
 
