@@ -47,6 +47,8 @@ const CONTINUATION_PLIES = 6;
 const MIB = 1024 * 1024;
 // Finished evaluations kept in memory, so revisiting a position is instant.
 const CACHE_SIZE = 10;
+// Explorer rows shown before the remaining database moves are grouped into "Other moves".
+const EXPLORER_MOVES = 6;
 // Outer size of the move preview in pixels, frame included.
 const PREVIEW_SIZE = 200;
 
@@ -216,6 +218,17 @@ function gamesOf(counts) {
   return counts ? counts.white + counts.draws + counts.black : 0;
 }
 
+// One combined entry for several database moves: summed counts and games, no uci.
+function aggregateMoves(entries) {
+  const counts = { white: 0, draws: 0, black: 0 };
+  for (const entry of entries) {
+    counts.white += entry.counts.white;
+    counts.draws += entry.counts.draws;
+    counts.black += entry.counts.black;
+  }
+  return { counts, games: entries.reduce((sum, entry) => sum + entry.games, 0) };
+}
+
 // Fixed-width slot to the right of a value, always present so values stay in
 // place. "D" marks a value from the database, "E" one estimated by Maia3 (used
 // when the database had too few games). Empty when no value exists.
@@ -355,6 +368,16 @@ export class EvalPanel {
     // Called with a UCI line (from the current position) when a continuation move is clicked.
     this.onPickLine = null;
     this.toggle = doc.getElementById('eval-toggle');
+    this.modeGroup = segmentedGroup(
+      doc.getElementById('analysis-mode'),
+      [
+        { value: 'off', label: 'Off' },
+        { value: 'evaluation', label: 'Evaluation' },
+        { value: 'explorer', label: 'Games explorer' },
+      ],
+      (value) => this.setMode(value),
+    );
+    this.explorerSourceGroup = null;
     this.settingsBtn = doc.getElementById('eval-settings-btn');
     this.settingsMenu = doc.getElementById('eval-settings');
     this.ratingBtn = doc.getElementById('eval-rating-btn');
@@ -381,6 +404,11 @@ export class EvalPanel {
 
     this.settings = loadSettings();
     this.enabled = false;
+    this.mode = 'off';
+    this.explorerSource = 'masters';
+    this.explorerView = null;
+    // Stockfish scores of explorer moves, by quality, line count and FEN.
+    this.explorerScores = new Map();
     this.fen = null;
     // Errors the user has dismissed for the current evaluation session. Ephemeral:
     // cleared when a new session starts (evaluation toggled on or a new game loaded).
@@ -471,7 +499,7 @@ export class EvalPanel {
 
   bind() {
     this.bindPick();
-    this.toggle.addEventListener('change', () => this.setEnabled(this.toggle.checked));
+    if (this.toggle) this.toggle.addEventListener('change', () => this.setEnabled(this.toggle.checked));
     this.previewInput.addEventListener('change', () => this.updateSettings({ preview: this.previewInput.checked }));
     // The token is applied only after Check validates it (see checkToken).
     this.tokenCheck?.addEventListener('click', (event) => { event.preventDefault(); this.checkToken(); });
@@ -582,7 +610,8 @@ export class EvalPanel {
     if (fen === this.fen && speed === this.speed) return;
     this.fen = fen;
     this.speed = speed;
-    if (this.enabled) this.run();
+    if (this.mode === 'evaluation' && this.enabled) this.run();
+    if (this.mode === 'explorer') this.runExplorer();
   }
 
   // Without a Lichess token the setting is read-only and the warning explains why.
@@ -592,10 +621,6 @@ export class EvalPanel {
     this.externalDataWarning.hidden = !locked;
     this.externalDataGroup.setDisabled(locked);
     this.externalDataItem?.classList.toggle('is-disabled', locked);
-  }
-
-  toggleEnabled() {
-    this.setEnabled(!this.enabled);
   }
 
   // Begins a new evaluation session: clears any errors the user dismissed earlier.
@@ -621,18 +646,33 @@ export class EvalPanel {
     return line;
   }
 
-  setEnabled(value) {
-    this.enabled = Boolean(value);
-    this.toggle.checked = this.enabled;
-    if (this.enabled) {
-      this.startEvaluationSession();
-      this.run();
-    } else {
+  setMode(value) {
+    this.mode = value;
+    this.enabled = value !== 'off';
+    if (this.toggle) this.toggle.checked = this.enabled;
+    if (value === 'off') {
       this.runId += 1;
       this.engine?.cancel();
       this.view = null;
+      this.explorerView = null;
       this.render();
+      return;
     }
+    if (value === 'evaluation') {
+      this.startEvaluationSession();
+      this.run();
+      return;
+    }
+    // explorer
+    this.runExplorer();
+  }
+
+  setEnabled(value) {
+    this.setMode(value ? 'evaluation' : 'off');
+  }
+
+  toggleEnabled() {
+    this.setMode(this.mode === 'off' ? 'evaluation' : 'off');
   }
 
   // The peer data depends on the game's speed, so the speed is part of the key.
@@ -728,6 +768,8 @@ export class EvalPanel {
   }
 
   syncControls() {
+    this.modeGroup?.setValue(this.mode);
+    if (this.explorerSourceGroup) this.explorerSourceGroup.setValue(this.explorerSource);
     this.linesGroup.setValue(this.settings.lines);
     this.qualityGroup.setValue(this.settings.quality);
     this.playRateViewGroup.setValue(this.settings.playRateView);
@@ -770,6 +812,219 @@ export class EvalPanel {
       item.setAttribute('aria-selected', String(selected));
       item.classList.toggle('selected', selected);
     });
+  }
+
+  async runExplorer() {
+    const runId = ++this.runId;
+    this.fen = this.fen || null;
+    if (!this.fen) {
+      this.explorerView = { state: 'done', fen: null, moves: [], total: 0, source: this.explorerSource, errors: [] };
+      this.render();
+      return;
+    }
+    const token = this.settings.token;
+    if (!token) {
+      this.explorerView = { state: 'error', fen: this.fen, message: 'A Lichess token is required for the opening explorer.', errors: ['A Lichess token is required for the opening explorer.'] };
+      this.render();
+      return;
+    }
+    this.explorerView = { state: 'loading', fen: this.fen, moves: [], total: 0, source: this.explorerSource, errors: [] };
+    this.render();
+    try {
+      const db = this.explorerSource === 'masters'
+        ? await fetchMastersDatabase({ fen: this.fen, token })
+        : await fetchPeerDatabase({ fen: this.fen, rating: this.settings.rating, speed: this.speed, token });
+      if (runId !== this.runId) return;
+      const moves = [...(db.moves?.entries?.() ?? [])]
+        .map(([uci, counts]) => ({ uci, counts, games: gamesOf(counts) }))
+        .filter((entry) => entry.games > 0)
+        .sort((a, b) => b.games - a.games);
+      if (runId !== this.runId) return;
+      const shown = moves.slice(0, EXPLORER_MOVES);
+      const rest = moves.slice(EXPLORER_MOVES);
+      const others = rest.length ? aggregateMoves(rest) : null;
+      const ucis = shown.map((entry) => entry.uci);
+      const scoreKey = `${this.settings.quality}|${ucis.join(' ')}|${this.fen}`;
+      const cachedScores = this.explorerScores.get(scoreKey) ?? null;
+      this.explorerView = { state: 'done', fen: this.fen, moves: shown, others, total: db.total, source: this.explorerSource, engineScores: cachedScores, errors: [] };
+      if (!cachedScores) this.scoreExplorer(runId, scoreKey, ucis);
+    } catch (error) {
+      if (runId !== this.runId) return;
+      this.explorerView = { state: 'error', fen: this.fen, moves: [], total: 0, source: this.explorerSource, message: error.message, errors: [error.message] };
+    }
+    this.render();
+  }
+
+  // Scores the explorer's moves with Stockfish in the background. The engine
+  // budget comes from the quality setting. Finished scores are cached per position.
+  async scoreExplorer(runId, scoreKey, ucis) {
+    const fen = this.fen;
+    try {
+      this.engine ??= new StockfishEngine();
+      await this.engine.ready;
+      const result = await this.engine.analyze({
+        fen,
+        multiPV: ucis.length,
+        nodes: QUALITY_LEVELS[this.settings.quality].nodes,
+        searchMoves: ucis,
+      });
+      if (runId !== this.runId || this.mode !== 'explorer' || !this.explorerView) return;
+      if (result.error || result.cancelled) throw new Error(result.error?.message ?? 'cancelled');
+      const scores = new Map();
+      for (const line of result.lines) {
+        if (line.pv[0]) scores.set(line.pv[0], line.score);
+      }
+      this.explorerScores.delete(scoreKey);
+      this.explorerScores.set(scoreKey, scores);
+      while (this.explorerScores.size > CACHE_SIZE) {
+        this.explorerScores.delete(this.explorerScores.keys().next().value);
+      }
+      this.explorerView = { ...this.explorerView, engineScores: scores };
+      this.render();
+    } catch {
+      if (runId !== this.runId || !this.explorerView) return;
+      this.explorerView = { ...this.explorerView, engineScores: new Map() };
+      this.render();
+    }
+  }
+
+  renderExplorer() {
+    this.body.replaceChildren();
+    // source switch
+    const srcContainer = el('div', 'eval-seg');
+    this.explorerSourceGroup = segmentedGroup(
+      srcContainer,
+      [
+        { value: 'masters', label: 'Masters' },
+        { value: 'lichess', label: 'Lichess' },
+      ],
+      (value) => { this.explorerSource = value; this.runExplorer(); },
+    );
+    this.explorerSourceGroup.setValue(this.explorerSource);
+    const srcWrap = el('div', 'eval-explorer-source');
+    srcWrap.append(srcContainer);
+    this.body.append(srcWrap);
+
+    const view = this.explorerView;
+    if (!view || view.state === 'loading') {
+      for (let i = 0; i < this.settings.lines; i += 1) {
+        const row = el('div', 'eval-line eval-line-pending');
+        row.setAttribute('aria-hidden', 'true');
+        const primary = el('div', 'eval-primary');
+        primary.append(
+          el('span', 'eval-skeleton eval-skeleton-move'),
+          el('span', 'eval-skeleton eval-skeleton-wdl'),
+          el('span', 'eval-skeleton eval-skeleton-circles'),
+        );
+        row.append(primary);
+        this.body.append(row);
+      }
+      return;
+    }
+    if (view.state === 'error') {
+      this.body.append(el('p', 'eval-empty eval-error', view.message));
+      return;
+    }
+    if (!view.moves.length) {
+      this.body.append(el('p', 'eval-empty', 'No moves.'));
+      return;
+    }
+    // header
+    const header = el('div', 'eval-columns');
+    header.setAttribute('aria-hidden', 'true');
+    const label = (text) => el('span', 'eval-col-label', text);
+    const spans = [el('span', 'eval-col eval-col-move'), el('span', 'eval-col eval-col-score'), el('span', 'eval-col eval-col-wdl'), el('span', 'eval-col eval-col-circles')];
+    header.append(...spans);
+    const score = header.children[1]; score.append(label('Score'));
+    const wdl = header.children[2]; wdl.append(label('Results'));
+    const circles = header.children[3]; circles.append(label('Play rate'));
+    this.body.append(header);
+
+    const total = view.total || view.moves.reduce((s, m) => s + m.games, 0);
+    const topShare = Math.max(0, ...view.moves.map((m) => m.games / (total || 1)));
+    const scores = view.engineScores ?? new Map();
+    const bestScore = [...scores.values()].reduce((best, s) => (!best || (scoreToCp(s) ?? -Infinity) > (scoreToCp(best) ?? -Infinity)) ? s : best, null);
+    const rows = view.others ? [...view.moves, view.others] : view.moves;
+    rows.forEach((entry) => {
+      const row = el('div', 'eval-line');
+      const sc = entry.uci ? scores.get(entry.uci) : null;
+      if (sc && bestScore) {
+        const band = lossBand(lossForLine(bestScore, sc));
+        row.style.setProperty('--eval-tint', `var(--glyph-tint-${band.tint})`);
+      }
+      const uci = entry.uci;
+      const san = uciToSan(this.fen, uci);
+      const moveEl = el('span', 'eval-move');
+      const text = el('span', 'eval-move-text', uci ? (san ?? '—') : 'other');
+      moveEl.append(text);
+      const afterFirst = uci ? applyUci(this.fen, uci) : null;
+      if (afterFirst) {
+        this.bindPreview(text, afterFirst);
+        text.classList.add('eval-move-clickable');
+        text.dataset.pick = uci;
+      }
+      // results (wdl) from db counts
+      const mover = sideToMoveOf(this.fen);
+      const white = { win: entry.counts.white / (entry.games || 1), draw: entry.counts.draws / (entry.games || 1), loss: entry.counts.black / (entry.games || 1) };
+      const wdlWhite = mover === 'w' ? white : swapWdl(white);
+      // build wdl bar
+      const wdlWrap = el('div', 'eval-wdl-wrap');
+      const bar = el('div', 'eval-wdl');
+      bar.setAttribute('role', 'img');
+      const summary = `White ${formatPercent(wdlWhite.win)} · Draw ${formatPercent(wdlWhite.draw)} · Black ${formatPercent(wdlWhite.loss)}`;
+      bar.setAttribute('aria-label', `White win ${formatPercent(wdlWhite.win)}, draw ${formatPercent(wdlWhite.draw)}, black win ${formatPercent(wdlWhite.loss)}`);
+      attachTip(bar, summary.split(' · '));
+      for (const [key, cls] of [['win','eval-wdl-w'],['draw','eval-wdl-d'],['loss','eval-wdl-b']]) {
+        const seg = el('span', cls);
+        seg.style.width = formatPercent(wdlWhite[key]);
+        bar.append(seg);
+      }
+      wdlWrap.append(bar);
+      // play rate circles
+      const circlesWrap = el('div', 'eval-circles-pair');
+      const lineWrap = el('div', 'eval-circles-wrap');
+      const circlesEl = el('span', 'eval-circles');
+      const prob = entry.games / (total || 1);
+      const count = prob < 0.01 || !topShare ? 0 : Math.min(DOTS, Math.max(1, Math.round((prob / topShare) * DOTS)));
+      const onClass = view.source === 'masters' ? 'eval-dot eval-dot-on eval-dot-master' : 'eval-dot eval-dot-on';
+      const gamesLabel = view.source === 'masters' ? 'master games' : 'peer games';
+      circlesEl.setAttribute('role', 'img');
+      circlesEl.setAttribute('aria-label', `Probability ${count} of ${DOTS}`);
+      attachTip(circlesEl, [prob < 0.01 ? `< 1% of ${gamesLabel}` : `${formatPercent(prob)} of ${gamesLabel}`]);
+      for (let i = 0; i < DOTS; i += 1) circlesEl.append(el('span', i < count ? onClass : 'eval-dot'));
+      lineWrap.append(circlesEl);
+      circlesWrap.append(lineWrap);
+      const games = entry.games;
+      const gamesText =
+        games > 999999
+          ? `${Math.round(games / 1000000)}M games`
+          : games > 999
+            ? `${Math.round(games / 1000)}k games`
+            : `${games} ${games === 1 ? 'game' : 'games'}`;
+      const gamesLine = el('span', 'eval-games-count', gamesText);
+      circlesWrap.append(gamesLine);
+
+      const scoreWrap = el('span', 'eval-score-wrap');
+      const scoreVal = view.engineScores?.get(uci);
+      if (!uci) {
+        // The "Other moves" row has no score.
+      } else if (scoreVal) {
+        scoreWrap.append(el('span', 'eval-score', formatScore(scoreVal, sideToMoveOf(this.fen))));
+      } else if (view.engineScores === null) {
+        scoreWrap.append(el('span', 'eval-skeleton eval-skeleton-score'), el('span', 'eval-source-slot'));
+      } else {
+        scoreWrap.append(el('span', 'eval-empty-inline', '—'));
+      }
+      const primary = el('div', 'eval-primary');
+      primary.append(moveEl, scoreWrap, wdlWrap, circlesWrap);
+      row.append(primary);
+      row.append(this.buildContinuationPlaceholder());
+      this.body.append(row);
+    });
+  }
+
+  buildContinuationPlaceholder() {
+    return el('div', 'eval-continuation');
   }
 
   async run() {
@@ -1173,15 +1428,20 @@ export class EvalPanel {
     // Rows are replaced here, so a tooltip on a removed node would never get its mouseleave.
     hideTip();
     this.maiaProgress = null;
-    this.toggle.checked = this.enabled;
-    // Collapse the section to its header while evaluation is off.
-    this.section.classList.toggle('collapsed', !this.enabled);
+    if (this.toggle) this.toggle.checked = this.enabled;
+    // Collapse the section to its header while analysis is off.
+    this.section.classList.toggle('collapsed', this.mode === 'off');
     setSplitEnabled(this.enabled);
     this.settingsBtn?.setAttribute('aria-pressed', String(this.settingsMenu ? !this.settingsMenu.hidden : false));
     this.body.replaceChildren();
 
-    if (!this.enabled) {
-      this.body.append(el('p', 'eval-empty', 'Evaluation is off. Press E to show it.'));
+    if (this.mode === 'off') {
+      this.body.append(el('p', 'eval-empty', 'Analysis is off. Press E to show it.'));
+      return;
+    }
+
+    if (this.mode === 'explorer') {
+      this.renderExplorer();
       return;
     }
 

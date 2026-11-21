@@ -1988,6 +1988,18 @@ main {
   width: 120px;
 }
 
+.eval-explorer-source {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0 0;
+}
+
+#analysis-mode .eval-seg-btn,
+.eval-explorer-source .eval-seg-btn {
+  font-family: "Geist Sans", sans-serif;
+  font-size: 11px;
+}
+
 .eval-seg {
   display: inline-flex;
   padding: 2px;
@@ -2361,6 +2373,11 @@ main {
   align-items: center;
   gap: 4px;
   width: 85px;
+}
+
+/* Game count under the play-rate circles in the explorer. */
+.eval-games-count {
+  font-size: 13px;
 }
 
 /* Two probability lines (peers, then masters) stacked in one column. */

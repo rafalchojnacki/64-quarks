@@ -58,13 +58,18 @@ function enqueue(task) {
   return result;
 }
 
+// The explorer writes castling as the king moving onto its rook (e1h1); chess
+// moves and engine lines use the king's destination (e1g1).
+const CASTLING_UCI = { e1h1: 'e1g1', e1a1: 'e1c1', e8h8: 'e8g8', e8a8: 'e8c8' };
+
 // Turns a raw explorer response into { total, moves: Map<uci, {white, draws, black}> }.
 // Counts are from White's point of view.
 function normalize(data) {
   const total = (data.white ?? 0) + (data.draws ?? 0) + (data.black ?? 0);
   const moves = new Map();
   for (const move of data.moves ?? []) {
-    moves.set(move.uci, { white: move.white, draws: move.draws, black: move.black });
+    const uci = CASTLING_UCI[move.uci] ?? move.uci;
+    moves.set(uci, { white: move.white, draws: move.draws, black: move.black });
   }
   return { total, moves };
 }
