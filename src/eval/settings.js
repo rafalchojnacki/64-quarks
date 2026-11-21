@@ -4,7 +4,7 @@ export const LINE_COUNTS = [1, 2, 3, 4, 5, 6];
 // nodes is the Stockfish node budget for one search.
 export const QUALITY_LEVELS = {
   fast: { label: 'Low', nodes: 500_000 },
-  standard: { label: 'Balanced', nodes: 2_000_000 },
+  standard: { label: 'Balanced', nodes: 1_000_000 },
   deep: { label: 'High', nodes: 10_000_000 },
 };
 
@@ -33,7 +33,7 @@ export const RESULT_VIEWS = [
 ];
 
 // token is an optional Lichess API token. Empty means anonymous access.
-export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, playRateView: 'masters', resultsView: 'peers', preview: false, token: '', lichessUsername: '', externalData: 'off' };
+export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 1500, playRateView: 'masters', resultsView: 'peers', preview: false, token: '', lichessUsername: '', externalData: 'off', explorerScores: true };
 
 const STORAGE_KEY = '64-quarks.eval';
 
@@ -73,5 +73,6 @@ export function normalizeSettings(value) {
     token: typeof source.token === 'string' ? source.token.trim() : DEFAULT_SETTINGS.token,
     lichessUsername: typeof source.lichessUsername === 'string' ? source.lichessUsername.trim() : DEFAULT_SETTINGS.lichessUsername,
     externalData: EXTERNAL_DATA_MODES.includes(externalData) ? externalData : DEFAULT_SETTINGS.externalData,
+    explorerScores: typeof source.explorerScores === 'boolean' ? source.explorerScores : DEFAULT_SETTINGS.explorerScores,
   };
 }

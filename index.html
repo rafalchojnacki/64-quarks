@@ -151,7 +151,7 @@
                     </div>
 
                     <div class="settings-group" data-group="evaluation">
-                      <button type="button" class="settings-group-toggle" aria-expanded="false">Evaluation</button>
+                      <button type="button" class="settings-group-toggle" aria-expanded="false">Analysis</button>
                       <div class="settings-group-body" hidden>
                         <div class="settings-item">
                           <span class="settings-item-label">
@@ -211,6 +211,14 @@
                           <input id="eval-preview" type="checkbox" />
                           <span class="settings-switch" aria-hidden="true"></span>
                         </label>
+                        <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Explorer scores</span>
+                            <span class="settings-item-desc">Score the games explorer moves with the engine</span>
+                          </span>
+                          <input id="explorer-scores" type="checkbox" />
+                          <span class="settings-switch" aria-hidden="true"></span>
+                        </label>
                       </div>
                     </div>
 
@@ -242,12 +250,9 @@
               </div>
               <div class="analysis-section" id="eval-section">
                 <div class="eval-header">
-                  <span class="eval-title">Evaluation</span>
+                  <span class="eval-title">Analysis</span>
                   <div class="eval-controls">
-                    <label class="eval-toggle" title="Show evaluation (E)">
-                      <input id="eval-toggle" type="checkbox" role="switch" aria-label="Show evaluation" />
-                      <span class="eval-switch" aria-hidden="true"></span>
-                    </label>
+                    <div id="analysis-mode" class="eval-seg" role="group" aria-label="Analysis mode"></div>
                   </div>
                 </div>
                 <div class="analysis-panel-body">
