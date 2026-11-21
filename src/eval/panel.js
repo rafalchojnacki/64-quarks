@@ -1027,7 +1027,7 @@ export class EvalPanel {
       // results (wdl) from db counts
       const mover = sideToMoveOf(this.fen);
       const white = { win: entry.counts.white / (entry.games || 1), draw: entry.counts.draws / (entry.games || 1), loss: entry.counts.black / (entry.games || 1) };
-      const wdlWhite = mover === 'w' ? white : swapWdl(white);
+      const wdlWhite = white;
       // build wdl bar
       const wdlWrap = el('div', 'eval-wdl-wrap');
       const bar = el('div', 'eval-wdl');
