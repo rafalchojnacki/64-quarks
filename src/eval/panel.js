@@ -11,6 +11,7 @@ import {
   gameSpeed,
   validateLichessToken,
   fetchLichessAccount,
+  fetchLichessRatings,
 } from './lichess.js';
 import { el, positionPopover, segmentedGroup } from '../ui.js';
 import { setSplitEnabled } from '../sidebar-split.js';
@@ -422,10 +423,17 @@ export class EvalPanel {
 
     this.buildControls(doc);
     this.syncControls();
-    if (this.settings.token && !this.settings.lichessUsername) {
-      fetchLichessAccount(this.settings.token)
-        .then((username) => this.updateSettings({ lichessUsername: username }))
-        .catch(() => {});
+    if (this.settings.token) {
+      if (!this.settings.lichessUsername) {
+        fetchLichessAccount(this.settings.token)
+          .then((username) => this.updateSettings({ lichessUsername: username }))
+          .catch(() => {});
+      }
+      if (!this.settings.lichessRatings) {
+        fetchLichessRatings(this.settings.token)
+          .then((ratings) => this.updateSettings({ lichessRatings: ratings }))
+          .catch(() => {});
+      }
     }
     this.bind();
     this.render();
@@ -468,8 +476,10 @@ export class EvalPanel {
       })),
       (value) => this.updateSettings({ externalData: value }),
     );
-    this.ratingItems = RATINGS.map((rating) => {
-      const item = el('li', 'eval-dd-item', String(rating));
+    const ratingOptions = ['auto', ...RATINGS];
+    this.ratingItems = ratingOptions.map((rating) => {
+      const label = rating === 'auto' ? 'Auto' : String(rating);
+      const item = el('li', 'eval-dd-item', label);
       item.setAttribute('role', 'option');
       item.dataset.value = String(rating);
       item.addEventListener('click', () => {
@@ -602,6 +612,21 @@ export class EvalPanel {
     return this.settings.externalData === 'tablebases' || this.settings.externalData === 'both';
   }
 
+  // Peer rating used for the Lichess peer database: the account's rating for the
+  // current speed when "Auto" is selected and an account is linked, otherwise
+  // the manual setting (or 1500 when Auto has no account rating to use).
+  effectivePeerRating() {
+    if (this.settings.rating !== 'auto') return this.settings.rating;
+    const ratings = this.settings.lichessRatings;
+    const accountRating = ratings && typeof ratings[this.speed] === 'number' ? ratings[this.speed] : null;
+    return accountRating ?? 1500;
+  }
+
+  // Rating passed to Maia: the manual setting, or 1500 when Auto is selected.
+  maiaRating() {
+    return this.settings.rating === 'auto' ? 1500 : this.settings.rating;
+  }
+
   // Called from the main board refresh; a no-op when neither the position nor the
   // game's time control changed. timeControl is the PGN TimeControl value of the
   // open game (or null if unknown); it selects the Lichess speed for the peer
@@ -651,6 +676,7 @@ export class EvalPanel {
   setMode(value) {
     this.mode = value;
     this.enabled = value !== 'off';
+    this.modeGroup?.setValue(this.mode);
     if (this.toggle) this.toggle.checked = this.enabled;
     if (value === 'off') {
       this.runId += 1;
@@ -697,7 +723,7 @@ export class EvalPanel {
     const token = this.tokenInput.value.trim();
     if (!token) {
       this.setTokenStatus(null);
-      this.updateSettings({ token: '', lichessUsername: '' });
+      this.updateSettings({ token: '', lichessUsername: '', lichessRatings: null });
       return;
     }
     this.tokenCheck.disabled = true;
@@ -722,9 +748,15 @@ export class EvalPanel {
       this.syncControls();
       return;
     }
+    let ratings = null;
+    try {
+      ratings = await fetchLichessRatings(token);
+    } catch {
+      ratings = null;
+    }
     this.setTokenStatus('ok', `Connected as ${username}`);
     this.toggleLichessForm(false);
-    this.updateSettings({ token, lichessUsername: username });
+    this.updateSettings({ token, lichessUsername: username, lichessRatings: ratings });
   }
 
   // Removes the stored token without validating.
@@ -732,7 +764,7 @@ export class EvalPanel {
     this.tokenInput.value = '';
     this.setTokenStatus(null);
     this.toggleLichessForm(false);
-    this.updateSettings({ token: '', lichessUsername: '' });
+    this.updateSettings({ token: '', lichessUsername: '', lichessRatings: null });
   }
 
   toggleLichessForm(force) {
@@ -812,7 +844,7 @@ export class EvalPanel {
       this.lichessLinkBtn.textContent = this.settings.lichessUsername ? '[disconnect]' : '[connect]';
     }
     this.updateExternalDataDesc();
-    this.ratingLabel.textContent = String(this.settings.rating);
+    this.ratingLabel.textContent = this.settings.rating === 'auto' ? 'Auto' : String(this.settings.rating);
     this.ratingItems.forEach((item) => {
       const selected = item.dataset.value === String(this.settings.rating);
       item.setAttribute('aria-selected', String(selected));
@@ -839,7 +871,7 @@ export class EvalPanel {
     try {
       const db = this.explorerSource === 'masters'
         ? await fetchMastersDatabase({ fen: this.fen, token })
-        : await fetchPeerDatabase({ fen: this.fen, rating: this.settings.rating, speed: this.speed, token });
+        : await fetchPeerDatabase({ fen: this.fen, rating: this.effectivePeerRating(), speed: this.speed, token });
       if (runId !== this.runId) return;
       const moves = [...(db.moves?.entries?.() ?? [])]
         .map(([uci, counts]) => ({ uci, counts, games: gamesOf(counts) }))
@@ -1061,7 +1093,9 @@ export class EvalPanel {
     }
 
     this.engine ??= new StockfishEngine();
-    const { lines: count, quality, rating, token } = this.settings;
+    const { lines: count, quality, token } = this.settings;
+    const rating = this.maiaRating();
+    const peerRating = this.effectivePeerRating();
 
     // Both engines are initialized before the search starts: Stockfish is started,
     // and the Maia3 model is downloaded and loaded (its progress is shown). Only then
@@ -1159,7 +1193,7 @@ export class EvalPanel {
     this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null, errors: [] };
     this.render();
 
-    const fetched = await this.fetchDatabases(fen, rating, this.speed, token);
+    const fetched = await this.fetchDatabases(fen, peerRating, this.speed, token);
     const { notes } = fetched;
     if (runId !== this.runId) return;
 
