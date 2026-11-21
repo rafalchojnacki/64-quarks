@@ -2496,11 +2496,12 @@ main {
 }
 
 .settings-legal-toggle {
+  float: right;
   font-size: 11px;
   color: var(--text-dim);
   text-decoration: underline;
   display: inline-block;
-  margin-top: 4px;
+  margin: 0 0 4px 8px;
 }
 
 .eval-token-status {
