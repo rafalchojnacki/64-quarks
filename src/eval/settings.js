@@ -3,9 +3,9 @@ export const LINE_COUNTS = [1, 2, 3, 4, 5, 6];
 // Keys are stored in saved settings, so they stay the same when labels change.
 // nodes is the Stockfish node budget for one search.
 export const QUALITY_LEVELS = {
-  fast: { label: 'Low', nodes: 500_000 },
+  fast: { label: 'Lower', nodes: 500_000 },
   standard: { label: 'Balanced', nodes: 1_000_000 },
-  deep: { label: 'High', nodes: 10_000_000 },
+  deep: { label: 'Higher', nodes: 10_000_000 },
 };
 
 // Maia3 strength levels: 600 to 2600 in steps of 100.
