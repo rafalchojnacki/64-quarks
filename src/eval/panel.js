@@ -51,6 +51,8 @@ const MIB = 1024 * 1024;
 const CACHE_SIZE = 10;
 // Explorer rows shown before the remaining database moves are grouped into "Other moves".
 const EXPLORER_MOVES = 6;
+// A single-move exact search gets this many times the quality's node budget.
+const EXACT_REFINE_FACTOR = 4;
 // Outer size of the move preview in pixels, frame included.
 const PREVIEW_SIZE = 200;
 
@@ -922,7 +924,7 @@ export class EvalPanel {
       if (result.error || result.cancelled) throw new Error(result.error?.message ?? 'cancelled');
       const scores = new Map();
       for (const line of result.lines) {
-        if (line.pv[0]) scores.set(line.pv[0], line.score);
+        if (line.pv[0]) scores.set(line.pv[0], { score: line.score, bound: line.bound ?? null });
       }
       this.explorerScores.delete(scoreKey);
       this.explorerScores.set(scoreKey, scores);
@@ -936,6 +938,59 @@ export class EvalPanel {
       this.explorerView = { ...this.explorerView, engineScores: new Map() };
       this.render();
     }
+  }
+
+  // Searches one move alone to get an exact score. The result is written into the
+  // cached score map of the current position, so it stays after re-rendering.
+  async refineExplorerMove(uci) {
+    const view = this.explorerView;
+    if (!view || view.state !== 'done' || !view.engineScores || this.explorerRefining) return;
+    const runId = this.runId;
+    const fen = this.fen;
+    const scores = view.engineScores;
+    this.explorerRefining = uci;
+    this.render();
+    let exact = null;
+    try {
+      this.engine ??= new StockfishEngine();
+      await this.engine.ready;
+      const result = await this.engine.analyze({
+        fen,
+        multiPV: 1,
+        nodes: QUALITY_LEVELS[this.settings.quality].nodes * EXACT_REFINE_FACTOR,
+        searchMoves: [uci],
+        onUpdate: (lines) => {
+          for (const line of lines) {
+            if (line.pv[0] === uci && !line.bound) exact = line.score;
+          }
+        },
+      });
+      const last = result.lines[0];
+      if (last && last.pv[0] === uci && !last.bound) exact = last.score;
+    } catch {
+      exact = null;
+    }
+    this.explorerRefining = null;
+    if (runId !== this.runId || fen !== this.fen) return;
+    if (exact) scores.set(uci, { score: exact, bound: null });
+    this.render();
+  }
+
+  buildRefineButton(uci) {
+    const button = el('button', 'eval-source-slot eval-refine');
+    button.type = 'button';
+    button.disabled = Boolean(this.explorerRefining);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM21 21l-4.35-4.35');
+    svg.append(path);
+    button.append(svg);
+    button.setAttribute('aria-label', 'Search this move for an exact score');
+    attachTip(button, ['Search this move alone for an exact score']);
+    button.addEventListener('click', () => this.refineExplorerMove(uci));
+    return button;
   }
 
   renderExplorer() {
@@ -1092,14 +1147,24 @@ export class EvalPanel {
     const total = view.total || view.moves.reduce((s, m) => s + m.games, 0);
     const topShare = Math.max(0, ...view.moves.map((m) => m.games / (total || 1)));
     const scores = view.engineScores ?? new Map();
-    const bestScore = [...scores.values()].reduce((best, s) => (!best || (scoreToCp(s) ?? -Infinity) > (scoreToCp(best) ?? -Infinity)) ? s : best, null);
+    // Bounds are not exact, so they neither set the reference best score nor get a loss tint.
+    const bestScore = [...scores.values()].reduce((best, entry) => {
+      if (entry.bound) return best;
+      return (!best || (scoreToCp(entry.score) ?? -Infinity) > (scoreToCp(best) ?? -Infinity)) ? entry.score : best;
+    }, null);
     const rows = view.others ? [...view.moves, view.others] : view.moves;
     rows.forEach((entry) => {
       const row = el('div', 'eval-line');
       const sc = entry.uci ? scores.get(entry.uci) : null;
+      // A lower bound caps the loss, so it proves "good" only in the Best/Good bands.
+      // An upper bound floors the loss, so it proves "bad" only in the Blunder band.
       if (sc && bestScore) {
-        const band = lossBand(lossForLine(bestScore, sc));
-        row.style.setProperty('--eval-tint', `var(--glyph-tint-${band.tint})`);
+        const band = lossBand(lossForLine(bestScore, sc.score));
+        const provenGood = sc.bound === 'lower' && (band.label === 'Best' || band.label === 'Good');
+        const provenBad = sc.bound === 'upper' && band.label === 'Blunder';
+        if (!sc.bound || provenGood || provenBad) {
+          row.style.setProperty('--eval-tint', `var(--glyph-tint-${band.tint})`);
+        }
       }
       const uci = entry.uci;
       const san = uciToSan(this.fen, uci);
@@ -1154,15 +1219,29 @@ export class EvalPanel {
       circlesWrap.append(gamesLine);
 
       const scoreWrap = el('span', 'eval-score-wrap');
-      const scoreVal = view.engineScores?.get(uci);
+      const scoreEntry = view.engineScores?.get(uci);
+      const scoreVal = scoreEntry?.score ?? scoreEntry;
+      const bound = scoreEntry?.bound ?? null;
       if (!uci) {
         // The "Other moves" row has no score.
+      } else if (this.explorerRefining === uci) {
+        scoreWrap.append(el('span', 'eval-skeleton eval-skeleton-score'), el('span', 'eval-source-slot'));
       } else if (scoreVal) {
-        scoreWrap.append(el('span', 'eval-score', formatScore(scoreVal, sideToMoveOf(this.fen))));
+        // Bounds are from the side to move; formatScore shows White's view, so flip the sign for Black.
+        const flipped = sideToMoveOf(this.fen) === 'b';
+        const lowerSign = flipped ? '≤ ' : '≥ ';
+        const upperSign = flipped ? '≥ ' : '≤ ';
+        const prefix = bound === 'lower' ? lowerSign : bound === 'upper' ? upperSign : '';
+        const scoreSpan = el('span', bound ? 'eval-score eval-score-bound' : 'eval-score', `${prefix}${formatScore(scoreVal, sideToMoveOf(this.fen))}`);
+        if (bound) attachTip(scoreSpan, ['Not an exact score: the engine only found a bound']);
+        scoreWrap.append(scoreSpan);
       } else if (view.engineScores === null) {
         scoreWrap.append(el('span', 'eval-skeleton eval-skeleton-score'), el('span', 'eval-source-slot'));
       } else {
         scoreWrap.append(el('span', 'eval-empty-inline', '—'));
+      }
+      if (uci && view.engineScores && (!scoreEntry || scoreEntry.bound)) {
+        scoreWrap.append(this.buildRefineButton(uci));
       }
       const primary = el('div', 'eval-primary');
       primary.append(moveEl);

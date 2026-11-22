@@ -15,8 +15,10 @@ export function parseInfoLine(line) {
   const scoreIndex = tokens.indexOf('score');
   const pvIndex = tokens.indexOf('pv');
   if (!Number.isFinite(depth) || scoreIndex < 0 || pvIndex < 0) return null;
-  // Bounds (lowerbound/upperbound) are not exact scores; skip them.
-  if (tokens.includes('lowerbound') || tokens.includes('upperbound')) return null;
+  // Bounds are not exact scores, but keep them (flagged) so the UI can show
+  // them as inequalities instead of dropping the move entirely.
+  const isLowerBound = tokens.includes('lowerbound');
+  const isUpperBound = tokens.includes('upperbound');
   const kind = tokens[scoreIndex + 1];
   const amount = Number(tokens[scoreIndex + 2]);
   if (!Number.isFinite(amount)) return null;
@@ -44,6 +46,7 @@ export function parseInfoLine(line) {
     score,
     pv: tokens.slice(pvIndex + 1),
     wdl,
+    bound: isLowerBound ? 'lower' : isUpperBound ? 'upper' : null,
   };
 }
 
