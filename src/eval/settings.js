@@ -20,9 +20,7 @@ export const PLAY_RATE_VIEWS = [
   { value: 'off', label: 'Off' },
 ];
 
-// Which external data source is used for evaluation. 'off' uses neither; 'both'
-// enables both the Lichess game databases and the endgame tablebases.
-export const EXTERNAL_DATA_MODES = ['off', 'databases', 'tablebases', 'both'];
+
 
 // Which WDL is shown in the Results column.
 export const RESULT_VIEWS = [
@@ -34,7 +32,7 @@ export const RESULT_VIEWS = [
 
 // token is an optional Lichess API token. Empty means anonymous access.
 
-export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 'auto', playRateView: 'both', resultsView: 'peers', preview: false, token: '', lichessUsername: '', externalData: 'off', explorerScores: true, lichessRatings: null };
+export const DEFAULT_SETTINGS = { lines: 3, quality: 'standard', rating: 'auto', playRateView: 'both', resultsView: 'peers', preview: false, token: '', lichessUsername: '', explorerScores: true, lichessRatings: null };
 
 const STORAGE_KEY = '64-quarks.eval';
 
@@ -63,7 +61,6 @@ export function normalizeSettings(value) {
   const rating = Number(source.rating);
   const playRateView = source.playRateView ?? source.probView;
   const resultsView = source.resultsView;
-  const externalData = source.externalData;
   const lichessRatings = source.lichessRatings;
   return {
     lines: LINE_COUNTS.includes(lines) ? lines : DEFAULT_SETTINGS.lines,
@@ -74,7 +71,6 @@ export function normalizeSettings(value) {
     preview: source.preview === true,
     token: typeof source.token === 'string' ? source.token.trim() : DEFAULT_SETTINGS.token,
     lichessUsername: typeof source.lichessUsername === 'string' ? source.lichessUsername.trim() : DEFAULT_SETTINGS.lichessUsername,
-    externalData: EXTERNAL_DATA_MODES.includes(externalData) ? externalData : DEFAULT_SETTINGS.externalData,
     explorerScores: typeof source.explorerScores === 'boolean' ? source.explorerScores : DEFAULT_SETTINGS.explorerScores,
     lichessRatings: lichessRatings && typeof lichessRatings === 'object' ? lichessRatings : DEFAULT_SETTINGS.lichessRatings,
   };

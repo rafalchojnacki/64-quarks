@@ -90,7 +90,7 @@
                         <div class="settings-item">
                           <span class="settings-item-label">
                             <span class="settings-item-title">Lichess token</span>
-                            <span class="settings-item-desc">Needed for evaluation reference data, the games database, and automatic peer rating setup for analysis. <br /><a href="https://lichess.org/account/oauth/token/create?scopes[]=study:read&scopes[]=study:write" target="_blank" rel="noopener noreferrer">Get your token</a></span>
+                            <span class="settings-item-desc">Needed for the games database and linked-account peer ratings. <br /><a href="https://lichess.org/account/oauth/token/create?scopes[]=study:read&scopes[]=study:write" target="_blank" rel="noopener noreferrer">Get your token</a></span>
                           </span>
                           <div class="eval-token-control">
                             <div class="eval-token-row">
@@ -171,7 +171,7 @@
                         <div class="settings-item">
                           <span class="settings-item-label">
                             <span class="settings-item-title">Peer rating</span>
-                            <span class="settings-item-desc">Reference rating for peer play. "Auto" uses your linked Lichess account's rating for the game's speed, or 1500 when no account is linked. Peer database data uses the game's time control (blitz if unknown). Move estimates use the Maia3 AI model, which does not use the game's time control.</span>
+                            <span class="settings-item-desc">Reference rating for peer play. "Auto" uses your linked Lichess account's blitz rating, or 1500 when no account is linked. Peer database data uses blitz games. Move estimates use the Maia3 AI model, which does not use the game's time control.</span>
                           </span>
                           <div class="eval-dropdown settings-dropdown">
                             <button id="eval-rating-btn" type="button" class="eval-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="eval-rating-list">
@@ -181,14 +181,7 @@
                             <ul id="eval-rating-list" class="eval-dd-list" role="listbox" aria-label="Peer rating" hidden></ul>
                           </div>
                         </div>
-                        <div class="settings-item">
-                          <span class="settings-item-label">
-                            <span class="settings-item-title">Evaluation reference data</span>
-                            <span id="eval-external-data-desc" class="settings-item-desc">When enabled, game databases (for peer and master data) and endgame tablebases serve as the primary evaluation source instead of engines and AI models. A Lichess access token is required.</span>
-                            <span id="eval-external-data-warning" class="eval-external-data-warning" hidden>⚠ Lichess token is not set</span>
-                          </span>
-                          <div id="eval-external-data" class="eval-seg" role="group" aria-label="Evaluation reference data"></div>
-                        </div>
+
                         <div class="settings-item">
                           <span class="settings-item-label">
                             <span class="settings-item-title">Lines</span>

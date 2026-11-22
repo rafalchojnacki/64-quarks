@@ -2,17 +2,12 @@ import { StockfishEngine } from './stockfish.js';
 import { loadMaia, maiaModelUrl, scoreMoves } from './maia.js';
 import { DSC_MODEL_URL, loadDsc, predictDsc } from './dsc.js';
 import {
-  MIN_DB_GAMES,
   fetchMastersDatabase,
   fetchPeerDatabase,
-  fetchTablebase,
-  isTablebaseAvailable,
-  tablebaseMoveScore,
-  gameSpeed,
-  speedForTimeControl,
   validateLichessToken,
   fetchLichessAccount,
   fetchLichessRatings,
+  FALLBACK_SPEED,
 } from './lichess.js';
 import { el, positionPopover, segmentedGroup } from '../ui.js';
 import { setSplitEnabled } from '../sidebar-split.js';
@@ -35,7 +30,6 @@ import {
   PLAY_RATE_VIEWS,
   QUALITY_LEVELS,
   RESULT_VIEWS,
-  EXTERNAL_DATA_MODES,
   RATINGS,
   loadSettings,
   normalizeSettings,
@@ -237,68 +231,17 @@ function aggregateMoves(entries) {
 // place. "D" marks a value from the database, "E" one estimated by Maia3 (used
 // when the database had too few games). Empty when no value exists.
 // The tooltip is a custom one (see showTip).
-function sourceSlot(source, databaseName, games = null, hasToken = true, databaseEnabled = true) {
-  const slot = el('span', 'eval-source-slot');
-  if (!databaseEnabled) return slot;
-  let lines;
-  if (source === 'maia') {
-    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'E');
-    slot.append(glyph);
-    slot.classList.add('eval-source-maia');
-    // Without a token the database is never queried, so say that instead.
-    lines = [
-      hasToken
-        ? 'Estimated (not enough games in the database)'
-        : 'Estimated (Lichess token is not set in Settings)',
-    ];
-  } else if (source === 'dsc') {
-    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'E');
-    slot.append(glyph);
-    slot.classList.add('eval-source-maia');
-    lines = ['Estimated by DSC-23M-FEN (master-focused).'];
-  } else if (source === 'lichess' || source === 'masters') {
-    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'D');
-    slot.append(glyph);
-    slot.classList.add('eval-source-db');
-    // Time control for database data: peer data is filtered by the game's speed
-    // (derived from its PGN TimeControl, defaulting to blitz when unknown); the
-    // Masters database contains classical games only.
-    const timeControlNote =
-      databaseName === 'Masters'
-        ? 'classical games only'
-        : 'speed from the game time control (blitz if unknown)';
-    lines = [`${games.toLocaleString('en-US')} games (${timeControlNote})`];
-  } else {
-    return slot;
-  }
-  slot.setAttribute('role', 'img');
-  slot.setAttribute('aria-label', lines.join('. '));
-  attachTip(slot, lines);
-  return slot;
+function sourceSlot(source, databaseName, games = null, hasToken = true) {
+  // No source indicators remain after removing Evaluation reference data and
+  // database-backed evaluation; keep an empty fixed-width slot for alignment.
+  return el('span', 'eval-source-slot');
 }
 
 // Indicator for the Score column: T when the score comes from the tablebase,
 // E when it comes from the engine evaluation.
-function scoreSourceSlot(source, tablebaseEnabled = true) {
-  const slot = el('span', 'eval-source-slot');
-  if (!tablebaseEnabled) return slot;
-  let lines;
-  if (source === 'tablebase') {
-    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'T');
-    slot.append(glyph);
-    slot.classList.add('eval-source-tablebase');
-    slot.setAttribute('aria-label', 'Tablebase');
-    lines = ['Score from the endgame tablebase.'];
-  } else {
-    const glyph = el('span', 'eval-source-glyph eval-source-glyph--low', 'E');
-    slot.append(glyph);
-    slot.classList.add('eval-source-engine');
-    slot.setAttribute('aria-label', 'Engine evaluation');
-    lines = ['Score from the engine evaluation.'];
-  }
-  slot.setAttribute('role', 'img');
-  attachTip(slot, lines);
-  return slot;
+function scoreSourceSlot(source) {
+  // No score-source indicators remain; keep an empty fixed-width slot.
+  return el('span', 'eval-source-slot');
 }
 
 // Hover tooltip for a node, in the custom style (see showTip). Native title
@@ -401,9 +344,6 @@ export class EvalPanel {
     this.lichessLinkForm = doc.getElementById('lichess-link-form');
     this.lichessLinkBtn = doc.getElementById('lichess-link-btn');
     this.lichessLinkForm = doc.getElementById('lichess-link-form');
-    this.externalDataDesc = doc.getElementById('eval-external-data-desc');
-    this.externalDataWarning = doc.getElementById('eval-external-data-warning');
-    this.externalDataItem = this.externalDataDesc?.closest('.settings-item');
     this.section = doc.getElementById('eval-section');
     this.body = doc.getElementById('eval-body');
 
@@ -419,8 +359,6 @@ export class EvalPanel {
     // Errors the user has dismissed for the current evaluation session. Ephemeral:
     // cleared when a new session starts (evaluation toggled on or a new game loaded).
     this.hiddenErrors = new Set();
-    // Lichess speed of the open game (see setFen).
-    this.speed = gameSpeed(null);
     this.engine = null;
     this.runId = 0;
     this.view = null;
@@ -464,21 +402,6 @@ export class EvalPanel {
       doc.getElementById('eval-results-view'),
       RESULT_VIEWS.map((view) => ({ value: view.value, label: view.label })),
       (value) => this.updateSettings({ resultsView: value }),
-    );
-    this.externalDataGroup = segmentedGroup(
-      doc.getElementById('eval-external-data'),
-      EXTERNAL_DATA_MODES.map((value) => ({
-        value,
-        label:
-          value === 'off'
-            ? 'Off'
-            : value === 'databases'
-              ? 'Databases'
-              : value === 'tablebases'
-                ? 'Tablebases'
-                : 'Both',
-      })),
-      (value) => this.updateSettings({ externalData: value }),
     );
     const ratingOptions = ['auto', ...RATINGS];
     this.ratingItems = ratingOptions.map((rating) => {
@@ -605,21 +528,13 @@ export class EvalPanel {
     if (this.settingsBtn) this.settingsBtn.setAttribute('aria-expanded', 'false');
   }
 
-  get databaseEnabled() {
-    return this.settings.externalData === 'databases' || this.settings.externalData === 'both';
-  }
-
-  get tablebaseEnabled() {
-    return this.settings.externalData === 'tablebases' || this.settings.externalData === 'both';
-  }
-
   // Peer rating used for the Lichess peer database: the account's rating for the
   // current speed when "Auto" is selected and an account is linked, otherwise
   // the manual setting (or 1500 when Auto has no account rating to use).
   effectivePeerRating() {
     if (this.settings.rating !== 'auto') return this.settings.rating;
     const ratings = this.settings.lichessRatings;
-    const accountRating = ratings && typeof ratings[this.speed] === 'number' ? ratings[this.speed] : null;
+    const accountRating = ratings && typeof ratings[FALLBACK_SPEED] === 'number' ? ratings[FALLBACK_SPEED] : null;
     return accountRating ?? 1500;
   }
 
@@ -628,22 +543,12 @@ export class EvalPanel {
     return this.settings.rating === 'auto' ? 1500 : this.settings.rating;
   }
 
-  // Called from the main board refresh; a no-op when neither the position nor the
-  // game's time control changed. timeControl is the PGN TimeControl value of the
-  // open game (or null if unknown); it selects the Lichess speed for the peer
-  // data (defaulting to blitz). Maia estimation is conditioned on a Lichess
-  // player rating and does not use time control.
-  setFen(fen, timeControl = null) {
-    const speed = gameSpeed(timeControl);
-    if (fen === this.fen && speed === this.speed) return;
+  // Called from the main board refresh.
+  setFen(fen) {
+    if (fen === this.fen) return;
     this.fen = fen;
-    this.speed = speed;
     if (this.mode === 'evaluation' && this.enabled) this.run();
     if (this.mode === 'explorer') this.runExplorer();
-  }
-
-  setExplorerLichessSpeedFromTimeControl(timeControl, { run = true } = {}) {
-    this.setExplorerLichessSpeed(speedForTimeControl(timeControl) ?? 'all', { run });
   }
 
   setExplorerLichessSpeed(value, { run = true } = {}) {
@@ -652,15 +557,6 @@ export class EvalPanel {
     if (next === this.explorerLichessSpeed) return;
     this.explorerLichessSpeed = next;
     if (run && this.mode === 'explorer' && this.explorerSource === 'lichess') this.runExplorer();
-  }
-
-  // Without a Lichess token the setting is read-only and the warning explains why.
-  updateExternalDataDesc() {
-    if (!this.externalDataWarning) return;
-    const locked = !this.settings.token;
-    this.externalDataWarning.hidden = !locked;
-    this.externalDataGroup.setDisabled(locked);
-    this.externalDataItem?.classList.toggle('is-disabled', locked);
   }
 
   // Begins a new evaluation session: clears any errors the user dismissed earlier.
@@ -718,7 +614,7 @@ export class EvalPanel {
 
   // The peer data depends on the game's speed, so the speed is part of the key.
   cacheKey(fen) {
-    return `${this.speed}|${this.settings.resultsView}|${fen}`;
+    return `${this.settings.resultsView}|${fen}`;
   }
 
   // Keeps the most recent finished evaluations (CACHE_SIZE of them), oldest first.
@@ -824,7 +720,6 @@ export class EvalPanel {
     this.qualityGroup.setValue(this.settings.quality);
     this.playRateViewGroup.setValue(this.settings.playRateView);
     this.resultsViewGroup.setValue(this.settings.resultsView);
-    this.externalDataGroup.setValue(this.settings.externalData);
     this.previewInput.checked = this.settings.preview;
     if (this.explorerScoresInput) this.explorerScoresInput.checked = this.settings.explorerScores;
     this.tokenInput.value = this.settings.token;
@@ -856,7 +751,6 @@ export class EvalPanel {
     if (this.lichessLinkBtn && this.lichessLinkForm?.hidden) {
       this.lichessLinkBtn.textContent = this.settings.lichessUsername ? '[disconnect]' : '[connect]';
     }
-    this.updateExternalDataDesc();
     this.ratingLabel.textContent = this.settings.rating === 'auto' ? 'Auto' : String(this.settings.rating);
     this.ratingItems.forEach((item) => {
       const selected = item.dataset.value === String(this.settings.rating);
@@ -1293,61 +1187,17 @@ export class EvalPanel {
     this.view = { state: 'loading', fen, lines: previousLines, maia: null, errors: [] };
     this.render();
 
-    // Consult the tablebase first: when the position is resolved there, the
-    // engine search is skipped entirely and its scores are used.
-    let tablebase = null;
-    if (this.tablebaseEnabled) {
-      try {
-        tablebase = await fetchTablebase(fen);
-      } catch (error) {
-        tablebase = error;
-      }
-    }
     if (runId !== this.runId) return;
-    // A tablebase response is only "resolved" when it actually scores every
-    // legal move. Syzygy may report a root outcome (e.g. a win) while leaving
-    // most moves "unknown" (as happens for positions with an immediate mate);
-    // those are not real tablebase positions and must be analysed by the engine.
-    const tbUsableEarly =
-      isTablebaseAvailable(tablebase) &&
-      Array.isArray(tablebase?.moves) &&
-      tablebase.moves.length > 0 &&
-      tablebase.moves.every((move) => tablebaseMoveScore(move) !== null);
-
-    if (!tbUsableEarly) {
-      try {
-        await this.engine.ready;
-      } catch (error) {
-        if (runId !== this.runId) return;
-        this.view = { state: 'error', fen, message: `Engine failed: ${error.message}`, errors: [`Engine failed: ${error.message}`] };
-        this.render();
-        return;
-      }
-    }
     let result;
-    if (tbUsableEarly) {
-      const tbMoves = [...tablebase.moves].sort((a, b) => {
-        const sa = tablebaseMoveScore(a);
-        const sb = tablebaseMoveScore(b);
-        return (scoreToCp(sb) ?? 0) - (scoreToCp(sa) ?? 0);
-      });
-      const selected = tbMoves.slice(0, count);
-      const lines = selected.map((move, index) => {
-        const line = {
-          depth: 0,
-          multipv: index + 1,
-          nodes: 0,
-          score: tablebaseMoveScore(move),
-          pv: [move.uci],
-          wdl: null,
-        };
-        line.scoreSource = 'tablebase';
-        return line;
-      });
-      result = { lines, cancelled: false };
-      this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null, errors: [] };
+    try {
+      await this.engine.ready;
+    } catch (error) {
+      if (runId !== this.runId) return;
+      this.view = { state: 'error', fen, message: `Engine failed: ${error.message}`, errors: [`Engine failed: ${error.message}`] };
       this.render();
-    } else {
+      return;
+    }
+    {
       const previousLines = this.view?.lines?.length ? this.view.lines : [];
       this.view = { state: 'searching', fen, lines: previousLines, progress: 0 };
       this.render();
@@ -1384,32 +1234,11 @@ export class EvalPanel {
     this.view = { state: 'scoring', fen, lines: result.lines, scored: null, maia: null, errors: [] };
     this.render();
 
-    const fetched = await this.fetchDatabases(fen, peerRating, this.speed, token);
+    const fetched = { peer: null, masters: null, notes: [] };
     const { notes } = fetched;
     if (runId !== this.runId) return;
 
-    // Tablebase: when the position is resolved by the tablebase, its score
-    // replaces the engine's score for every candidate move.
-    if (this.tablebaseEnabled) {
-      try {
-        tablebase = await fetchTablebase(fen);
-      } catch (error) {
-        notes.push(`Tablebase unavailable: ${error.message}.`);
-      }
-    }
-    if (runId !== this.runId) return;
-    const tbUsable = isTablebaseAvailable(tablebase);
-    const tbMoves = tbUsable ? new Map((tablebase.moves || []).map((move) => [move.uci, move])) : null;
     for (const line of result.lines) {
-      const uci = line.pv[0];
-      if (tbUsable && tbMoves && uci) {
-        const score = tablebaseMoveScore(tbMoves.get(uci));
-        if (score) {
-          line.score = score;
-          line.scoreSource = 'tablebase';
-          continue;
-        }
-      }
       line.scoreSource = 'engine';
     }
 
@@ -1564,43 +1393,6 @@ export class EvalPanel {
     // Results with a failed source are not cached, so the next visit retries them.
     if (!messages.length) this.remember(key, result.lines, scored);
     this.render();
-  }
-
-  // Queries both Lichess databases for the position. A database counts only if
-  // it has at least MIN_DB_GAMES games there. A failed query is reported in notes.
-  // Without a token the explorer is not queried at all, so both columns use Maia3.
-  async fetchDatabases(fen, rating, speed, token) {
-    const notes = [];
-    if (!this.databaseEnabled) return { peer: null, masters: null, notes };
-    if (!token) return { peer: null, masters: null, notes };
-    let peerError = null;
-    let mastersError = null;
-    const peer = await (async () => {
-      try {
-        const db = await fetchPeerDatabase({ fen, rating, speed, token });
-        return db.total >= MIN_DB_GAMES ? db : null;
-      } catch (error) {
-        peerError = error;
-        return null;
-      }
-    })();
-    const masters = await (async () => {
-      try {
-        const db = await fetchMastersDatabase({ fen, token });
-        return db.total >= MIN_DB_GAMES ? db : null;
-      } catch (error) {
-        mastersError = error;
-        return null;
-      }
-    })();
-    if (peerError && mastersError) {
-      notes.push('Failed to access Lichess databases');
-    } else if (peerError) {
-      notes.push('Failed to access Lichess games database');
-    } else if (mastersError) {
-      notes.push('Failed to access Lichess masters databases');
-    }
-    return { peer, masters, notes };
   }
 
   async scoreWithMaia({ runId, fen, lines, rating, wantPeerWdl, wantPeerProb, wantMasters }) {
@@ -1805,7 +1597,7 @@ export class EvalPanel {
     primary.append(moveEl);
     const scoreWrap = el('span', 'eval-score-wrap');
     scoreWrap.append(el('span', 'eval-score', formatScore(line.score, sideToMoveOf(fen))));
-    scoreWrap.append(scoreSourceSlot(line.scoreSource || 'engine', this.tablebaseEnabled));
+    scoreWrap.append(scoreSourceSlot(line.scoreSource || 'engine'));
     primary.append(scoreWrap);
 
     const resultsView = this.settings.resultsView;
@@ -1964,7 +1756,7 @@ export class EvalPanel {
     const hasToken = Boolean(this.settings.token);
     const wrap = el('div', 'eval-circles-wrap');
     const circles = el('span', 'eval-circles');
-    wrap.append(circles, sourceSlot(entry?.source, databaseName, entry?.games, hasToken, this.databaseEnabled));
+    wrap.append(circles, sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
     // A zero probability means the move has no games in the database (for DB
     // entries) or Maia estimated it as never played. Null/undefined means
     // no value exists at all, which is shown as a dash instead of circles.
@@ -1991,7 +1783,7 @@ export class EvalPanel {
     const wrap = el('div', 'eval-wdl-wrap');
     const hasToken = Boolean(this.settings.token);
     if (!entry || !entry.wdl) {
-      wrap.append(el('div', 'eval-empty-inline', '—'), sourceSlot(entry?.source, databaseName, entry?.games, hasToken, this.databaseEnabled));
+      wrap.append(el('div', 'eval-empty-inline', '—'), sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
       return wrap;
     }
     const mover = sideToMoveOf(fen);
@@ -2010,7 +1802,7 @@ export class EvalPanel {
       segment.style.width = formatPercent(white[key]);
       bar.append(segment);
     }
-    wrap.append(bar, sourceSlot(entry?.source, databaseName, entry?.games, hasToken, this.databaseEnabled));
+    wrap.append(bar, sourceSlot(entry?.source, databaseName, entry?.games, hasToken));
     return wrap;
   }
 }

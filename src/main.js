@@ -400,7 +400,7 @@ function refresh() {
   renderMoveList();
   renderMoveSelector();
   ensureActiveMoveVisible();
-  evalPanel.setFen(currentFen, moveTree?.metadata?.TimeControl ?? null);
+  evalPanel.setFen(currentFen);
   renderMetaPanel();
   if (shareDialog && !shareDialog.hidden) updateShareDialog();
   saveState();
@@ -1230,7 +1230,6 @@ function importPgn(pgn) {
     reindexTree();
     resetMoveSelection();
     evalPanel.startEvaluationSession();
-    evalPanel.setExplorerLichessSpeedFromTimeControl(moveTree?.metadata?.TimeControl ?? null, { run: false });
     refresh();
     return true;
   } catch {

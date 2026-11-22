@@ -8,10 +8,9 @@ move tree, and see engine lines with human-likelihood data.
 - Board with move tree, PGN import and export, and a timer.
 - Evaluation panel: Stockfish 18 (lite, WASM) lines with win/draw/loss.
 - Peer and Masters columns from the Lichess opening explorer (needs a token).
-  Peer data is filtered by the game's time control (speed derived from its PGN
-  TimeControl, defaulting to blitz when unknown); the Masters database holds
-  classical games only. Maia3 estimates are conditioned on a Lichess player
-  rating and do not use the game's time control.
+  Peer data uses blitz games; the Masters database holds classical games only.
+  Maia3 estimates are conditioned on a Lichess player rating and do not use the
+  game's time control.
 - Maia3 human-move estimates where the database has too few games (marked `E`).
 - DSC-23M-FEN (ChessDS) master-focused human-move estimates for the Masters
   probability column where the Masters database has too few games (marked `E`).
