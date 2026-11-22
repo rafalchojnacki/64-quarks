@@ -1295,10 +1295,10 @@ importBtn.addEventListener('click', openImportDialog);
 
 if (clearBtn) {
   clearBtn.addEventListener('click', () => {
-    if (moveTree.children.length === 0) return;
+    if (moveTree.children.length === 0 && currentFen === START_FEN) return;
     openConfirmDialog({
       title: 'Clear all moves?',
-      message: 'This clears the board and deletes all moves. This cannot be undone.',
+      message: 'Deletes all moves and resets the board to the starting position. This cannot be undone.',
       label: 'Clear',
       onConfirm: resetGame,
     });
@@ -1309,10 +1309,10 @@ if (clearBtn) {
 // when there are no moves, so the confirm dialog is only reachable with moves present.
 if (clearMovesBtn) {
   clearMovesBtn.addEventListener('click', () => {
-    if (moveTree.children.length === 0) return;
+    if (moveTree.children.length === 0 && currentFen === START_FEN) return;
     openConfirmDialog({
       title: 'Clear all moves?',
-      message: 'This clears the board and deletes all moves. This cannot be undone.',
+      message: 'Deletes all moves and resets the board to the starting position. This cannot be undone.',
       label: 'Clear',
       onConfirm: resetGame,
     });
