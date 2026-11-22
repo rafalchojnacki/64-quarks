@@ -1993,7 +1993,7 @@ main {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: 4px 0 0;
+  padding: 4px 0 8px;
 }
 
 .eval-explorer-tempo {
@@ -2012,7 +2012,7 @@ main {
 .eval-explorer-tempo .eval-dd-btn,
 .eval-explorer-tempo .eval-dd-item {
   font-family: "Geist Sans", sans-serif;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .eval-explorer-tempo .eval-dd-list {
@@ -2022,7 +2022,7 @@ main {
 #analysis-mode .eval-seg-btn,
 .eval-explorer-source .eval-seg-btn {
   font-family: "Geist Sans", sans-serif;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .eval-seg {
