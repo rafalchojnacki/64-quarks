@@ -1,5 +1,5 @@
 import { StockfishEngine } from './stockfish.js';
-import { loadMaia, maiaModelUrl, scoreMoves } from './maia.js';
+import { loadMaia, maiaModelUrl, scoreMoves, predictPositionWdl } from './maia.js';
 import { DSC_MODEL_URL, loadDsc, predictDsc } from './dsc.js';
 import {
   fetchMastersDatabase,
@@ -24,6 +24,7 @@ import {
   uciLineParts,
   uciToSan,
   wdlFromWhite,
+  materialSummary,
 } from './format.js';
 import {
   LINE_COUNTS,
@@ -49,6 +50,8 @@ const EXPLORER_MOVES = 6;
 const EXACT_REFINE_FACTOR = 4;
 // Outer size of the move preview in pixels, frame included.
 const PREVIEW_SIZE = 200;
+// Placement, side to move, castling and en passant fields of the starting position.
+const INITIAL_POSITION = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -';
 
 // Progress bar for the Maia model download (see loadMaia in maia.js). Shown only
 // during the download phase: a determinate fill when the total size is known,
@@ -311,6 +314,9 @@ export class EvalPanel {
     this.preview = null;
     // Finished evaluations by FEN, for the current analysis settings.
     this.cache = new Map();
+    this.summaryCache = new Map();
+    this.openingCache = new Map();
+    this.ancestors = null;
     this.hoverFen = null;
     // Called with a UCI line (from the current position) when a continuation move is clicked.
     this.onPickLine = null;
@@ -319,8 +325,9 @@ export class EvalPanel {
       doc.getElementById('analysis-mode'),
       [
         { value: 'off', label: 'Off' },
-        { value: 'evaluation', label: 'Evaluation' },
-        { value: 'explorer', label: 'Games database' },
+        { value: 'evaluationSummary', label: 'Summary' },
+        { value: 'engineLines', label: 'Lines' },
+        { value: 'explorer', label: 'Database' },
       ],
       (value) => this.setMode(value),
     );
@@ -544,10 +551,12 @@ export class EvalPanel {
   }
 
   // Called from the main board refresh.
-  setFen(fen) {
-    if (fen === this.fen) return;
+  setFen(fen, ancestors = null) {
+    if (fen === this.fen && ancestors === this.ancestors) return;
     this.fen = fen;
-    if (this.mode === 'evaluation' && this.enabled) this.run();
+    this.ancestors = ancestors;
+    if (this.mode === 'engineLines' && this.enabled) this.run();
+    if (this.mode === 'evaluationSummary' && this.enabled) this.runEvaluationSummary();
     if (this.mode === 'explorer') this.runExplorer();
   }
 
@@ -595,9 +604,14 @@ export class EvalPanel {
       this.render();
       return;
     }
-    if (value === 'evaluation') {
+    if (value === 'engineLines') {
       this.startEvaluationSession();
       this.run();
+      return;
+    }
+    if (value === 'evaluationSummary') {
+      this.startEvaluationSession();
+      this.runEvaluationSummary();
       return;
     }
     // explorer
@@ -605,11 +619,11 @@ export class EvalPanel {
   }
 
   setEnabled(value) {
-    this.setMode(value ? 'evaluation' : 'off');
+    this.setMode(value ? 'engineLines' : 'off');
   }
 
   toggleEnabled() {
-    this.setMode(this.mode === 'off' ? 'evaluation' : 'off');
+    this.setMode(this.mode === 'off' ? 'engineLines' : 'off');
   }
 
   // The peer data depends on the game's speed, so the speed is part of the key.
@@ -705,9 +719,13 @@ export class EvalPanel {
     this.syncControls();
     // The preview setting only affects display. Any other setting changes the
     // analysis, so the remembered evaluations are no longer valid.
-    if (Object.keys(patch).some((key) => key !== 'preview')) this.cache.clear();
+    if (Object.keys(patch).some((key) => key !== 'preview')) {
+      this.cache.clear();
+      this.summaryCache.clear();
+    }
     if (!('preview' in patch)) {
-      if (this.mode === 'evaluation') this.run();
+      if (this.mode === 'engineLines') this.run();
+      if (this.mode === 'evaluationSummary') this.runEvaluationSummary();
       if (this.mode === 'explorer') this.runExplorer();
     }
     if (!this.settings.preview) this.hidePreview();
@@ -1395,6 +1413,187 @@ export class EvalPanel {
     this.render();
   }
 
+  async runEvaluationSummary() {
+    const runId = ++this.runId;
+    const fen = this.fen;
+    if (!this.enabled || !fen) {
+      this.view = {
+        state: 'done',
+        fen,
+        score: null,
+        peerResult: null,
+        opening: null,
+        material: materialSummary(fen || ''),
+        errors: [],
+      };
+      this.render();
+      return;
+    }
+
+    const key = `summary|${this.settings.resultsView}|${fen}`;
+    const cached = this.summaryCache.get(key);
+    if (cached) {
+      this.engine?.cancel();
+      this.summaryCache.delete(key);
+      this.summaryCache.set(key, cached);
+      this.view = { ...cached, fen };
+      this.render();
+      return;
+    }
+
+    this.view = {
+      state: 'loading',
+      fen,
+      score: null,
+      peerResult: null,
+      opening: null,
+      material: materialSummary(fen),
+      progress: 0,
+      errors: [],
+    };
+    this.render();
+
+    this.engine ??= new StockfishEngine();
+    const errors = [];
+    let score = null;
+    let engineWdl = null;
+
+    try {
+      await this.engine.ready;
+    } catch (error) {
+      if (runId !== this.runId) return;
+      this.view = {
+        state: 'error',
+        fen,
+        message: `Engine failed: ${error.message}`,
+        errors: [`Engine failed: ${error.message}`],
+      };
+      this.render();
+      return;
+    }
+
+    this.view = {
+      ...this.view,
+      state: 'searching',
+      progress: 0,
+    };
+    this.render();
+
+    try {
+      const result = await this.engine.analyze({
+        fen,
+        multiPV: 1,
+        nodes: QUALITY_LEVELS[this.settings.quality].nodes,
+        onProgress: (progress) => {
+          if (runId !== this.runId) return;
+          this.view = { ...this.view, progress };
+          this.render();
+        },
+      });
+      if (runId !== this.runId) return;
+      if (result.error) throw new Error(result.error.message);
+      if (!result.cancelled && result.lines?.length) {
+        score = result.lines[0].score;
+        engineWdl = result.lines[0].wdl ?? null;
+      }
+    } catch (error) {
+      if (runId !== this.runId) return;
+      errors.push(`Engine failed: ${error.message}`);
+    }
+
+    let peerResult = null;
+    let peerStats = null;
+    if (this.settings.resultsView === 'engine') {
+      if (engineWdl) peerResult = { source: 'engine', wdl: engineWdl };
+    } else if (this.settings.resultsView === 'peers') {
+      const token = this.settings.token;
+      if (token) {
+        try {
+          const peerDb = await fetchPeerDatabase({
+            fen,
+            rating: this.effectivePeerRating(),
+            speed: this.explorerLichessSpeed === 'all'
+              ? 'ultraBullet,bullet,blitz,rapid,classical,correspondence'
+              : this.explorerLichessSpeed,
+            token,
+          });
+          if (runId !== this.runId) return;
+          const total = peerDb.total || [...peerDb.moves.values()].reduce((sum, counts) => sum + counts.white + counts.draws + counts.black, 0);
+          if (total > 0) {
+            let games = 0;
+            let ratingSum = 0;
+            for (const counts of peerDb.moves.values()) {
+              const gameCount = counts.white + counts.draws + counts.black;
+              games += gameCount;
+              if (typeof counts.averageRating === 'number') ratingSum += counts.averageRating * gameCount;
+            }
+            peerStats = {
+              games: total,
+              averageRating: games > 0 ? ratingSum / games : null,
+            };
+          }
+        } catch (error) {
+          if (runId !== this.runId) return;
+          errors.push(error.message);
+        }
+      }
+      try {
+        await loadMaia();
+        const wdl = await predictPositionWdl({ fen, rating: this.maiaRating() });
+        if (wdl) peerResult = { source: 'maia', wdl };
+      } catch (error) {
+        if (runId !== this.runId) return;
+        errors.push(`Maia3 failed: ${error.message}`);
+      }
+    }
+
+    let opening = this.openingCache.get(fen);
+    if (opening === undefined) {
+      opening = await this.resolveOpeningName(fen, this.ancestors, runId);
+      if (runId !== this.runId) return;
+      this.openingCache.set(fen, opening);
+    }
+
+    if (runId !== this.runId) return;
+    const view = {
+      state: 'done',
+      fen,
+      score,
+      peerResult,
+      peerStats,
+      opening,
+      progress: 1,
+      material: materialSummary(fen),
+      errors: [...errors],
+    };
+    this.view = view;
+    if (!errors.length) {
+      this.summaryCache.delete(key);
+      this.summaryCache.set(key, view);
+      while (this.summaryCache.size > CACHE_SIZE) {
+        this.summaryCache.delete(this.summaryCache.keys().next().value);
+      }
+    }
+    this.render();
+  }
+
+  async resolveOpeningName(fen, ancestors, runId) {
+    const candidates = ancestors ? [...ancestors].reverse() : [fen];
+    const limit = Math.min(candidates.length, 40);
+    for (let i = 0; i < limit; i += 1) {
+      if (runId !== this.runId) return null;
+      const candidate = candidates[i];
+      try {
+        const db = await fetchMastersDatabase({ fen: candidate, token: this.settings.token || '' });
+        if (runId !== this.runId) return null;
+        if (db?.opening?.name) return db.opening;
+      } catch {
+        // Keep trying older positions; a failed lookup should not stop the search.
+      }
+    }
+    return null;
+  }
+
   async scoreWithMaia({ runId, fen, lines, rating, wantPeerWdl, wantPeerProb, wantMasters }) {
     await loadMaia((status) => this.onMaiaStatus(runId, status));
     const moves = lines.map((line) => {
@@ -1453,6 +1652,101 @@ export class EvalPanel {
     return header;
   }
 
+  renderEvaluationSummary() {
+    this.body.replaceChildren();
+    hideTip();
+    if (!this.view || !this.view.fen) {
+      this.body.append(el('p', 'eval-empty', 'No position.'));
+      return;
+    }
+    const view = this.view;
+    if (view.state === 'error') {
+      const message = view.message ?? view.errors?.[0];
+      if (message && !this.hiddenErrors.has(message)) this.body.append(this.errorLine(message));
+      return;
+    }
+    const loading = view.state === 'loading' || view.state === 'searching' || view.state === 'scoring';
+    const card = el('div', 'eval-summary');
+    card.append(this.progressSlot(view));
+
+    const header = el('div', 'eval-columns');
+    header.setAttribute('aria-hidden', 'true');
+    const scoreCol = el('span', 'eval-col eval-col-score');
+    const scoreWrap = el('span', 'eval-score-wrap');
+    scoreWrap.append(el('span', 'eval-col-label', 'Score'));
+    scoreWrap.append(el('span', 'eval-source-slot'));
+    scoreCol.append(scoreWrap);
+    header.append(el('span', 'eval-col eval-col-move'), scoreCol);
+    if (this.settings.resultsView !== 'off') {
+      const wdlCol = el('span', 'eval-col eval-col-wdl');
+      wdlCol.append(el('span', 'eval-col-label', 'Peer result'));
+      header.append(wdlCol);
+    }
+    card.append(header);
+
+    const row = el('div', 'eval-line');
+    const primary = el('div', 'eval-primary');
+    primary.append(el('span', 'eval-move', 'Position'));
+    const scoreWrapCell = el('span', 'eval-score-wrap');
+    if (loading) {
+      scoreWrapCell.append(el('span', 'eval-skeleton eval-skeleton-score'), el('span', 'eval-source-slot'));
+    } else if (view.score) {
+      scoreWrapCell.append(el('span', 'eval-score', formatScore(view.score, sideToMoveOf(view.fen))));
+      scoreWrapCell.append(scoreSourceSlot('engine'));
+    } else {
+      scoreWrapCell.append(el('span', 'eval-empty-inline', '—'));
+    }
+    primary.append(scoreWrapCell);
+
+    if (this.settings.resultsView !== 'off') {
+      if (loading) {
+        primary.append(placeholderWdl());
+      } else if (view.peerResult?.wdl) {
+        const entry = { wdl: view.peerResult.wdl, source: view.peerResult.source, games: view.peerResult.games ?? null };
+        const column = { moves: [entry] };
+        const dbName = view.peerResult.source === 'masters' ? 'Masters' : 'Lichess';
+        primary.append(this.buildWdl(view.fen, column, entry, dbName));
+      } else {
+        const emptyWrap = el('div', 'eval-wdl-wrap');
+        emptyWrap.append(el('div', 'eval-empty-inline', '—'));
+        primary.append(emptyWrap);
+      }
+    }
+    row.append(primary);
+    card.append(row);
+
+    if (loading) {
+      // Keep placeholders only in the table (the score/peer-result row above);
+      // the opening name and peer stats appear once the data is available.
+    } else {
+      const isInitial = view.fen.split(' ').slice(0, 4).join(' ') === INITIAL_POSITION;
+      if (isInitial) {
+        card.append(el('p', 'eval-summary-line', 'Initial position'));
+      } else if (view.opening?.name) {
+        card.append(el('p', 'eval-summary-line', `${view.opening.name}${view.opening.eco ? ` (${view.opening.eco})` : ''}`));
+      }
+    }
+
+    if (!loading && view.peerStats?.games) {
+      const games = view.peerStats.games;
+      const gamesText =
+        games > 999999
+          ? `${Math.round(games / 1000000)}M`
+          : games > 999
+            ? `${Math.round(games / 1000)}k`
+            : `${games}`;
+      const ratingText = view.peerStats.averageRating
+        ? `, average rating ${Math.round(view.peerStats.averageRating)}`
+        : '';
+      card.append(el('p', 'eval-summary-line', `${gamesText} peer ${games === 1 ? 'game' : 'games'}${ratingText}`));
+    }
+
+    for (const message of view.errors ?? []) {
+      if (message && !this.hiddenErrors.has(message)) card.append(this.errorLine(message));
+    }
+    this.body.append(card);
+  }
+
   render() {
     // Rows are replaced here, so a tooltip on a removed node would never get its mouseleave.
     hideTip();
@@ -1466,6 +1760,11 @@ export class EvalPanel {
 
     if (this.mode === 'off') {
       this.body.append(el('p', 'eval-empty', 'Analysis is off. Press E to show it.'));
+      return;
+    }
+
+    if (this.mode === 'evaluationSummary') {
+      this.renderEvaluationSummary();
       return;
     }
 

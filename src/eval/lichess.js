@@ -71,15 +71,20 @@ function normalize(data) {
   const moves = new Map();
   for (const move of data.moves ?? []) {
     const uci = CASTLING_UCI[move.uci] ?? move.uci;
-    moves.set(uci, { white: move.white, draws: move.draws, black: move.black });
+    moves.set(uci, { white: move.white, draws: move.draws, black: move.black, averageRating: move.averageRating ?? null });
   }
-  return { total, moves };
+  return {
+    total,
+    moves,
+    opening: data.opening ?? null,
+    counts: { white: data.white ?? 0, draws: data.draws ?? 0, black: data.black ?? 0 },
+  };
 }
 
 // The explorer rejects anonymous requests, so every request needs a token.
 // Callers check for a token first; this guard keeps that rule in one place.
-async function getExplorer(url, token) {
-  if (!token) throw new LichessError('a Lichess API token is required');
+async function getExplorer(url, token, requireToken = true) {
+  if (requireToken && !token) throw new LichessError('a Lichess API token is required');
   if (cache.has(url)) return cache.get(url);
   return enqueue(async () => {
     if (cache.has(url)) return cache.get(url);
@@ -87,7 +92,7 @@ async function getExplorer(url, token) {
 
     let response;
     try {
-      response = await fetch(url, { headers: authHeaders(token) });
+      response = await fetch(url, token ? { headers: authHeaders(token) } : {});
     } catch {
       throw new LichessError('network error');
     }
@@ -186,14 +191,14 @@ export function fetchPeerDatabase({ fen, rating, speed, token }) {
     ratings: String(ratingGroup(rating)),
     speeds: speed,
   });
-  return getExplorer(`${LICHESS_URL}?${params}`, token);
+  return getExplorer(`${LICHESS_URL}?${params}`, token, true);
 }
 
 // Masters database (all recorded classical games between strong players). It is
 // not filtered by speed or rating: every game in it is classical, so the time
 // control is effectively fixed to classical. Needs a token.
 export function fetchMastersDatabase({ fen, token }) {
-  return getExplorer(`${MASTERS_URL}?${new URLSearchParams({ fen })}`, token);
+  return getExplorer(`${MASTERS_URL}?${new URLSearchParams({ fen })}`, token, false);
 }
 
 // Lichess Syzygy tablebases. Public, no token required.

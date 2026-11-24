@@ -400,7 +400,13 @@ function refresh() {
   renderMoveList();
   renderMoveSelector();
   ensureActiveMoveVisible();
-  evalPanel.setFen(currentFen);
+  const ancestorFens = [];
+  let ancestor = currentNode();
+  while (ancestor) {
+    ancestorFens.unshift(ancestor.fen);
+    ancestor = parentOf(ancestor);
+  }
+  evalPanel.setFen(currentFen, ancestorFens);
   renderMetaPanel();
   if (shareDialog && !shareDialog.hidden) updateShareDialog();
   saveState();

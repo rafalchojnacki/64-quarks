@@ -25,7 +25,6 @@ export const PLAY_RATE_VIEWS = [
 // Which WDL is shown in the Results column.
 export const RESULT_VIEWS = [
   { value: 'engine', label: 'Engine' },
-  { value: 'masters', label: 'Masters' },
   { value: 'peers', label: 'Peer' },
   { value: 'off', label: 'Off' },
 ];

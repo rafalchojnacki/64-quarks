@@ -136,6 +136,17 @@ export async function scoreMoves({ fen, moves, rating, ratings, probabilities = 
   return { moves: results, topProbability, peerTopProbability };
 }
 
+// Predicts the win/draw/loss for the side to move in one position.
+export async function predictPositionWdl({ fen, rating }) {
+  const instance = await loadMaia();
+  const [result] = await instance.predictBatch(
+    [{ fen, selfElo: rating, oppoElo: rating }],
+    { onError: 'collect' },
+  );
+  if (result instanceof Error || !result?.wdl) return null;
+  return result.wdl;
+}
+
 function isGameOver(fen) {
   const chess = new Chess(fen);
   return chess.isGameOver();

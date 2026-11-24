@@ -165,3 +165,31 @@ export function sideToMoveOf(fen) {
 export function formatPercent(value) {
   return `${Math.round(value * 100)}%`;
 }
+
+// Standard material values, used for the summary's material line.
+const MATERIAL_VALUES = { p: 1, n: 3, b: 3, r: 5, q: 9 };
+
+export function materialSummary(fen) {
+  const chess = new Chess(fen);
+  const counts = {
+    w: { K: 0, Q: 0, R: 0, B: 0, N: 0, P: 0 },
+    b: { K: 0, Q: 0, R: 0, B: 0, N: 0, P: 0 },
+  };
+  let white = 0;
+  let black = 0;
+  for (const row of chess.board()) {
+    for (const square of row) {
+      if (!square) continue;
+      const value = MATERIAL_VALUES[square.type] ?? 0;
+      counts[square.color][square.type.toUpperCase()] += 1;
+      if (square.color === 'w') white += value;
+      else black += value;
+    }
+  }
+  const balance = white - black;
+  const countText = (color) =>
+    `K${counts[color].K} Q${counts[color].Q} R${counts[color].R} B${counts[color].B} N${counts[color].N} P${counts[color].P}`;
+  if (balance === 0) return `Material: equal (${countText('w')} vs ${countText('b')})`;
+  const side = balance > 0 ? 'White' : 'Black';
+  return `Material: ${side} +${Math.abs(balance).toFixed(2)} (${countText('w')} vs ${countText('b')})`;
+}

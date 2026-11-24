@@ -2191,6 +2191,21 @@ main {
   color: var(--text-dim);
 }
 
+.eval-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: "Geist Sans", sans-serif;
+}
+
+.eval-summary-line {
+  margin: 0;
+  padding: 0 8px;
+  font-family: "Geist Sans", sans-serif;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
 .eval-line {
   --eval-tint: var(--text-main);
   display: flex;
@@ -2894,6 +2909,17 @@ main {
   min-width: 0;
   height: 10px;
   border-radius: 999px;
+}
+
+.eval-skeleton-opening {
+  width: 16em;
+  height: 13px;
+  vertical-align: middle;
+}
+.eval-skeleton-peer-stats {
+  width: 22em;
+  height: 13px;
+  vertical-align: middle;
 }
 
 .eval-skeleton-cont {
