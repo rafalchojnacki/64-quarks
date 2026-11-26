@@ -1,0 +1,11 @@
+[
+    {
+        "id": "maroczy-bind",
+        "name": "Maróczy Bind",
+        "patterns": [
+            "c4 d- e4 / c- d6 e7",
+            "c4 d- e4 / c- d7 e6"
+        ],
+        "summary": "White's pawns on c4 and e4 bind the centre: both attack d5, so Black cannot easily play ...d5 and loses central space. White has given up the d-pawn, and Black has no c-pawn left to challenge c4. Black keeps the d-pawn on d6 with the e-pawn on e7, or on d7 with the e-pawn on e6. Black often fianchettoes the king's bishop with ...g6, and the bind is the key feature rather than any Black pawn on c5. It arises from Sicilian Accelerated Dragon, Dragon and Kan setups, and from King's Indian and English structures."
+    }
+]

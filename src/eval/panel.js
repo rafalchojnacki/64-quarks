@@ -1,4 +1,5 @@
 import { StockfishEngine } from './stockfish.js';
+import { pawnStructureName } from './pawn-structure.js';
 import { loadMaia, maiaModelUrl, scoreMoves, predictPositionWdl } from './maia.js';
 import { DSC_MODEL_URL, loadDsc, predictDsc } from './dsc.js';
 import {
@@ -1423,6 +1424,7 @@ export class EvalPanel {
         score: null,
         peerResult: null,
         opening: null,
+        pawnStructure: null,
         material: materialSummary(fen || ''),
         errors: [],
       };
@@ -1447,6 +1449,7 @@ export class EvalPanel {
       score: null,
       peerResult: null,
       opening: null,
+      pawnStructure: null,
       material: materialSummary(fen),
       progress: 0,
       errors: [],
@@ -1554,6 +1557,7 @@ export class EvalPanel {
       this.openingCache.set(fen, opening);
     }
 
+    const pawnStructure = await pawnStructureName(fen);
     if (runId !== this.runId) return;
     const view = {
       state: 'done',
@@ -1562,6 +1566,7 @@ export class EvalPanel {
       peerResult,
       peerStats,
       opening,
+      pawnStructure,
       progress: 1,
       material: materialSummary(fen),
       errors: [...errors],
@@ -1724,6 +1729,9 @@ export class EvalPanel {
         card.append(el('p', 'eval-summary-line', 'Initial position'));
       } else if (view.opening?.name) {
         card.append(el('p', 'eval-summary-line', `${view.opening.name}${view.opening.eco ? ` (${view.opening.eco})` : ''}`));
+      }
+      if (!isInitial && view.pawnStructure) {
+        card.append(el('p', 'eval-summary-line', view.pawnStructure));
       }
     }
 
