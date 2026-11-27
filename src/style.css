@@ -904,12 +904,13 @@ main {
 }
 
 .import-dialog-panel {
-  width: min(100%, 560px);
+  width: min(100%, 760px);
 }
 
 #import-input {
   display: block;
   width: 100%;
+  min-height: 260px;
   margin-top: 14px;
   padding: 10px 12px;
   resize: vertical;
