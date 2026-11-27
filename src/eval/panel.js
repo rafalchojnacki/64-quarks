@@ -327,8 +327,8 @@ export class EvalPanel {
       [
         { value: 'off', label: 'Off' },
         { value: 'evaluationSummary', label: 'Summary' },
-        { value: 'engineLines', label: 'Lines' },
-        { value: 'explorer', label: 'Database' },
+        { value: 'engineLines', label: 'Engine Lines' },
+        { value: 'explorer', label: 'Game Databases' },
       ],
       (value) => this.setMode(value),
     );
