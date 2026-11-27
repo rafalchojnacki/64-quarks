@@ -1720,22 +1720,18 @@ export class EvalPanel {
     row.append(primary);
     card.append(row);
 
-    if (loading) {
-      // Keep placeholders only in the table (the score/peer-result row above);
-      // the opening name and peer stats appear once the data is available.
-    } else {
-      const isInitial = view.fen.split(' ').slice(0, 4).join(' ') === INITIAL_POSITION;
-      if (isInitial) {
-        card.append(el('p', 'eval-summary-line', 'Initial position'));
-      } else if (view.opening?.name) {
-        card.append(el('p', 'eval-summary-line', `${view.opening.name}${view.opening.eco ? ` (${view.opening.eco})` : ''}`));
-      }
-      if (!isInitial && view.pawnStructure) {
-        card.append(el('p', 'eval-summary-line', view.pawnStructure));
-      }
+    // Keep placeholders only in the table (the score/peer-result row above);
+    // the opening name and peer stats appear once the data is available.
+    // The starting position shows no summary lines.
+    const isInitial = view.fen.split(' ').slice(0, 4).join(' ') === INITIAL_POSITION;
+    if (!loading && !isInitial && view.opening?.name) {
+      card.append(el('p', 'eval-summary-line', `${view.opening.name}${view.opening.eco ? ` (${view.opening.eco})` : ''}`));
+    }
+    if (!loading && !isInitial && view.pawnStructure) {
+      card.append(el('p', 'eval-summary-line', view.pawnStructure));
     }
 
-    if (!loading && view.peerStats?.games) {
+    if (!loading && !isInitial && view.peerStats?.games) {
       const games = view.peerStats.games;
       const gamesText =
         games > 999999
