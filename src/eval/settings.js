@@ -14,19 +14,19 @@ export const RATINGS = Array.from({ length: 21 }, (_, i) => 600 + i * 100);
 // Which play-rate lines are shown in the squashed Peers/Masters column.
 // 'off' hides the play-rate column entirely.
 export const PLAY_RATE_VIEWS = [
+  { value: 'off', label: 'Off' },
   { value: 'masters', label: 'Masters' },
   { value: 'peers', label: 'Peers' },
   { value: 'both', label: 'Both' },
-  { value: 'off', label: 'Off' },
 ];
 
 
 
 // Which WDL is shown in the Results column.
 export const RESULT_VIEWS = [
+  { value: 'off', label: 'Off' },
   { value: 'engine', label: 'Engine' },
   { value: 'peers', label: 'Peer' },
-  { value: 'off', label: 'Off' },
 ];
 
 // token is an optional Lichess API token. Empty means anonymous access.
