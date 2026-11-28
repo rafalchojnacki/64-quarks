@@ -319,11 +319,21 @@
       <div class="import-dialog-panel">
         <h2 id="import-dialog-title">Import</h2>
         <p id="import-warning" class="import-warning" hidden>⚠ Importing will replace the current game</p>
-        <textarea id="import-input" rows="7" spellcheck="false" autocomplete="off" placeholder="Paste a FEN or PGN..."></textarea>
-        <p id="import-error" class="import-error" hidden>Paste a valid FEN or PGN.</p>
-        <div class="import-dialog-actions">
-          <button id="import-cancel" type="button">Cancel</button>
-          <button id="import-confirm" type="button">Import</button>
+        <div id="import-source-group" class="eval-seg import-source-group"></div>
+        <div id="import-panel-paste" class="import-tab-panel" role="tabpanel">
+          <textarea id="import-input" rows="7" spellcheck="false" autocomplete="off" placeholder="Paste a FEN or PGN..."></textarea>
+          <p id="import-error" class="import-error" hidden>Paste a valid FEN or PGN.</p>
+          <div class="import-dialog-actions">
+            <button id="import-cancel" type="button">Cancel</button>
+            <button id="import-confirm" type="button">Import</button>
+          </div>
+        </div>
+        <div id="import-panel-lichess" class="import-tab-panel" role="tabpanel" hidden>
+          <span id="import-lichess-status" class="import-lichess-status" role="status" aria-live="polite">Connect a Lichess token in Settings to load your latest games.</span>
+          <div class="import-lichess-scroll">
+            <div id="import-lichess-list" class="import-lichess-list"></div>
+            <button id="import-lichess-more" type="button" class="import-lichess-more">Load more</button>
+          </div>
         </div>
       </div>
     </div>

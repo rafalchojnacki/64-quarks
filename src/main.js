@@ -12,6 +12,8 @@ import '@fontsource/geist-sans/700.css';
 import { evalPanel } from './eval/panel.js';
 import { initSidebarSplit } from './sidebar-split.js';
 import { initMovesSettings, loadMoveLayout } from './move-layout.js';
+import { segmentedGroup } from './ui.js';
+import { fetchLichessAccount, fetchLichessGames, LichessError } from './eval/lichess.js';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -51,6 +53,23 @@ const importInput = document.getElementById('import-input');
 const importError = document.getElementById('import-error');
 const importWarning = document.getElementById('import-warning');const importCancel = document.getElementById('import-cancel');
 const importConfirm = document.getElementById('import-confirm');
+const importSourceGroup = document.getElementById('import-source-group');
+const importPanelPaste = document.getElementById('import-panel-paste');
+const importPanelLichess = document.getElementById('import-panel-lichess');
+
+const importSourceSeg = segmentedGroup(
+  importSourceGroup,
+  [
+    { value: 'paste', label: 'Paste' },
+    { value: 'lichess', label: 'Lichess' },
+  ],
+  (value) => switchImportTab(value),
+);
+let importShowingLichess = false;
+const importLichessStatus = document.getElementById('import-lichess-status');
+const importLichessMore = document.getElementById('import-lichess-more');
+const importLichessList = document.getElementById('import-lichess-list');
+let lichessGameCount = 3;
 const boardEl = document.getElementById('board');
 const moveIndicator = document.getElementById('move-indicator');
 const coordsFilesTop = document.getElementById('coords-files-top');
@@ -1355,6 +1374,16 @@ function closeImportDialog() {
   importBtn.setAttribute('aria-expanded', 'false');
 }
 
+function switchImportTab(tab) {
+  const isPaste = tab === 'paste';
+  importShowingLichess = !isPaste;
+  importPanelPaste.hidden = !isPaste;
+  importPanelLichess.hidden = isPaste;
+  importSourceSeg.setValue(tab);
+  if (!isPaste) loadLichessGames();
+  else importInput.focus();
+}
+
 function openImportDialog() {
   importInput.value = '';
   importError.hidden = true;
@@ -1362,7 +1391,7 @@ function openImportDialog() {
   importWarning.hidden = !willOverride;
   importDialog.hidden = false;
   importBtn.setAttribute('aria-expanded', 'true');
-  importInput.focus();
+  switchImportTab('paste');
 }
 
 function importText() {
@@ -1371,6 +1400,133 @@ function importText() {
     closeImportDialog();
   } else {
     importError.hidden = false;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function lichessGameResult(game) {
+  if (game.winner === 'white') return '1-0';
+  if (game.winner === 'black') return '0-1';
+  return '1/2-1/2';
+}
+
+function lichessGameDate(game) {
+  const date = new Date(game.createdAt || Date.now());
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}.${m}.${d}`;
+}
+
+function lichessTimeControl(game) {
+  const clock = game.clock;
+  if (!clock || typeof clock.initial !== 'number') return null;
+  const inc = typeof clock.increment === 'number' ? clock.increment : 0;
+  return `${clock.initial}+${inc}`;
+}
+
+function lichessGameToPgn(game) {
+  const white = game.players?.white?.user?.name || 'White';
+  const black = game.players?.black?.user?.name || 'Black';
+  const whiteElo = game.players?.white?.rating;
+  const blackElo = game.players?.black?.rating;
+  const result = lichessGameResult(game);
+  const date = lichessGameDate(game);
+  const tc = lichessTimeControl(game);
+  const event = game.arenaTour?.name || `${game.rated ? 'Rated' : 'Casual'} ${game.speed || ''} game`.trim();
+  const lines = [
+    `[Event "${event}"]`,
+    `[Site "https://lichess.org/${game.id}"]`,
+    `[Date "${date}"]`,
+    `[Round "-"]`,
+    `[White "${String(white).replace(/"/g, '\\"')}"]`,
+    `[Black "${String(black).replace(/"/g, '\\"')}"]`,
+    `[Result "${result}"]`,
+  ];
+  if (whiteElo) lines.push(`[WhiteElo "${whiteElo}"]`);
+  if (blackElo) lines.push(`[BlackElo "${blackElo}"]`);
+  if (tc) lines.push(`[TimeControl "${tc}"]`);
+  if (game.opening?.eco) lines.push(`[ECO "${game.opening.eco}"]`);
+  if (game.opening?.name) lines.push(`[Opening "${String(game.opening.name).replace(/"/g, '\\"')}"]`);
+  lines.push('');
+  lines.push(game.moves || '');
+  lines.push(result);
+  return lines.join('\\n');
+}
+
+async function loadLichessGames(count = lichessGameCount, append = false) {
+  if (!append) {
+    lichessGameCount = count;
+    importLichessList.innerHTML = '';
+    importLichessStatus.textContent = 'Loading latest games…';
+    importLichessStatus.hidden = false;
+  } else {
+    importLichessStatus.hidden = true;
+  }
+  const settings = evalPanel.settings || {};
+  let token = settings.token || '';
+  let username = settings.lichessUsername || '';
+  try {
+    if (!token) {
+      importLichessStatus.textContent = 'Connect a Lichess token in Settings to load your latest games.';
+      return;
+    }
+    if (!username) {
+      username = await fetchLichessAccount(token);
+      if (evalPanel.updateSettings) evalPanel.updateSettings({ lichessUsername: username });
+    }
+    const games = await fetchLichessGames(username, token, count);
+    if (!append) importLichessStatus.hidden = true;
+    if (!games.length) {
+      if (!append) {
+        importLichessStatus.hidden = false;
+        importLichessStatus.textContent = 'No games found.';
+      }
+      return;
+    }
+    const already = append ? importLichessList.children.length : 0;
+    const newGames = games.slice(already);
+    if (append) lichessGameCount = games.length;
+    for (const game of newGames) {
+      const box = document.createElement('button');
+      box.type = 'button';
+      box.className = 'import-lichess-game';
+      const white = game.players?.white?.user?.name || 'White';
+      const black = game.players?.black?.user?.name || 'Black';
+      const whiteElo = game.players?.white?.rating ? `<span class="meta-elo">${game.players.white.rating}</span>` : '';
+      const blackElo = game.players?.black?.rating ? `<span class="meta-elo">${game.players.black.rating}</span>` : '';
+      const tc = lichessTimeControl(game);
+      box.innerHTML = `
+        <div class="meta-players">
+          <div class="meta-line meta-line-player"><span class="meta-side meta-side-white" aria-hidden="true"></span><span>${escapeHtml(white)}</span>${whiteElo}</div>
+          <div class="meta-line meta-line-player"><span class="meta-side meta-side-black" aria-hidden="true"></span><span>${escapeHtml(black)}</span>${blackElo}</div>
+        </div>
+        <div class="meta-line meta-result">${lichessGameResult(game)}</div>
+        ${tc ? `<div class="meta-line meta-time">Time control: ${formatTimeControl(tc) || tc}</div>` : ''}
+        <div class="meta-line meta-date">${lichessGameDate(game)}</div>
+        <div class="meta-line meta-event">${escapeHtml(game.arenaTour?.name || `${game.rated ? 'Rated' : 'Casual'} ${game.speed || ''} game`.trim())}</div>
+      `;
+      box.addEventListener('click', () => {
+        const pgn = lichessGameToPgn(game);
+        if (importPgn(pgn)) {
+          closeImportDialog();
+        } else {
+          importLichessStatus.hidden = false;
+          importLichessStatus.textContent = 'Could not import this game.';
+        }
+      });
+      importLichessList.appendChild(box);
+    }
+  } catch (error) {
+    importLichessStatus.hidden = false;
+    importLichessStatus.textContent = error instanceof LichessError ? error.message : 'Could not load games.';
   }
 }
 
@@ -1385,6 +1541,18 @@ promotionOverlay.addEventListener('click', (event) => {
 
 importCancel.addEventListener('click', closeImportDialog);
 importConfirm.addEventListener('click', importText);
+// segmented group handles clicks
+importLichessMore.addEventListener('click', async () => {
+  const originalText = importLichessMore.textContent;
+  importLichessMore.textContent = 'Loading...';
+  importLichessMore.disabled = true;
+  try {
+    await loadLichessGames(lichessGameCount + 9, true);
+  } finally {
+    importLichessMore.textContent = originalText || 'Load more';
+    importLichessMore.disabled = false;
+  }
+});
 importDialog.addEventListener('click', (event) => {
   if (event.target === importDialog) closeImportDialog();
 });

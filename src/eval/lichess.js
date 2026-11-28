@@ -157,6 +157,44 @@ export function fetchLichessAccount(token) {
   });
 }
 
+// Fetches the most recent games of a Lichess user. Resolves with an array of
+// game objects (NDJSON), newest first. Needs a token for the user's own games;
+// anonymous access is throttled and only sees public games.
+export function fetchLichessGames(username, token, max = 10) {
+  const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${encodeURIComponent(String(max))}&opening=true`;
+  return enqueue(async () => {
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          Accept: 'application/x-ndjson',
+          ...(token ? authHeaders(token) : {}),
+        },
+      });
+    } catch {
+      throw new LichessError('network error, try again');
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new LichessError('Lichess rejected the API token');
+    }
+    if (response.status === 429) throw new LichessError('rate limited, try again later');
+    if (!response.ok) throw new LichessError(`Lichess returned HTTP ${response.status}`);
+    const text = await response.text();
+    return text
+      .trim()
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          throw new LichessError('invalid response from Lichess');
+        }
+      });
+  });
+}
+
 // Fetches the account's ratings per speed. Resolves with
 // { bullet, blitz, rapid, classical } (numbers or null), or throws.
 export function fetchLichessRatings(token) {
