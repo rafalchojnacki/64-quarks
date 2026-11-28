@@ -184,21 +184,33 @@ export function fetchLichessRatings(token) {
 // derived from the game's PGN TimeControl (see gameSpeed/speedForTimeControl)
 // and defaults to blitz when it is missing or not a clock time control.
 // Needs a token.
-export function fetchPeerDatabase({ fen, rating, speed, token }) {
-  const params = new URLSearchParams({
+export function fetchPeerDatabase({ fen, rating, speed, years = null, token }) {
+  const params = addYears(new URLSearchParams({
     variant: 'standard',
     fen,
     ratings: String(ratingGroup(rating)),
     speeds: speed,
-  });
+  }), years, true);
   return getExplorer(`${LICHESS_URL}?${params}`, token, true);
 }
 
 // Masters database (all recorded classical games between strong players). It is
 // not filtered by speed or rating: every game in it is classical, so the time
 // control is effectively fixed to classical. Needs a token.
-export function fetchMastersDatabase({ fen, token }) {
-  return getExplorer(`${MASTERS_URL}?${new URLSearchParams({ fen })}`, token, false);
+export function fetchMastersDatabase({ fen, years = null, token }) {
+  const params = addYears(new URLSearchParams({ fen }), years, false);
+  return getExplorer(`${MASTERS_URL}?${params}`, token, false);
+}
+
+// Adds the time range to an explorer request. `years` is { from, to } (either end
+// may be null, meaning open) or null for all games. The peer database takes
+// YYYY-MM months, the masters database plain years.
+function addYears(params, years, monthly) {
+  if (!years) return params;
+  const bound = (year, end) => (monthly ? `${year}-${end ? '12' : '01'}` : String(year));
+  if (years.from != null) params.set('since', bound(years.from, false));
+  if (years.to != null) params.set('until', bound(years.to, true));
+  return params;
 }
 
 // Lichess Syzygy tablebases. Public, no token required.

@@ -47,6 +47,18 @@ const MIB = 1024 * 1024;
 const CACHE_SIZE = 10;
 // Explorer rows shown before the remaining database moves are grouped into "Other moves".
 const EXPLORER_MOVES = 6;
+
+// Time-range choices of the Database view. `years` is how far back a preset reaches.
+const EXPLORER_RANGE_PRESETS = [
+  { value: 'all', label: 'All time' },
+  { value: 'last50', label: 'Last 50 years', years: 50 },
+  { value: 'last25', label: 'Last 25 years', years: 25 },
+  { value: 'last10', label: 'Last 10 years', years: 10 },
+  { value: 'last5', label: 'Last 5 years', years: 5 },
+  { value: 'custom', label: 'Custom' },
+];
+// Earliest year the Lichess and Masters explorers hold games for.
+const EXPLORER_FIRST_YEAR = 1952;
 // A single-move exact search gets this many times the quality's node budget.
 const EXACT_REFINE_FACTOR = 4;
 // Outer size of the move preview in pixels, frame included.
@@ -360,6 +372,8 @@ export class EvalPanel {
     this.mode = 'off';
     this.explorerSource = 'masters';
     this.explorerLichessSpeed = 'all';
+    // Database view time range: { value: a preset value, from, to } (from/to only for custom).
+    this.explorerRange = { value: 'all', from: null, to: null };
     this.explorerView = null;
     // Stockfish scores of explorer moves, by quality, line count and FEN.
     this.explorerScores = new Map();
@@ -569,6 +583,28 @@ export class EvalPanel {
     if (next === this.explorerLichessSpeed) return;
     this.explorerLichessSpeed = next;
     if (run && this.mode === 'explorer' && this.explorerSource === 'lichess') this.runExplorer();
+  }
+
+  setExplorerRange({ value, from = null, to = null }) {
+    const current = this.explorerRange;
+    if (value === current.value && from === current.from && to === current.to) return;
+    this.explorerRange = { value, from, to };
+    if (this.mode === 'explorer') this.runExplorer();
+  }
+
+  // Year bounds { from, to } of the Database view's time range, or null for all games.
+  explorerYears() {
+    const range = this.explorerRange;
+    if (range.value === 'custom') return { from: range.from, to: range.to };
+    const preset = EXPLORER_RANGE_PRESETS.find((option) => option.value === range.value);
+    if (!preset?.years) return null;
+    return { from: new Date().getFullYear() - preset.years, to: null };
+  }
+
+  explorerRangeLabel() {
+    const range = this.explorerRange;
+    if (range.value === 'custom') return `${range.from}-${range.to}`;
+    return EXPLORER_RANGE_PRESETS.find((option) => option.value === range.value)?.label ?? 'All time';
   }
 
   // Begins a new evaluation session: clears any errors the user dismissed earlier.
@@ -797,9 +833,10 @@ export class EvalPanel {
     this.explorerView = { state: 'loading', fen: this.fen, moves: [], total: 0, source: this.explorerSource, errors: [] };
     this.render();
     try {
+      const years = this.explorerYears();
       const db = this.explorerSource === 'masters'
-        ? await fetchMastersDatabase({ fen: this.fen, token })
-        : await fetchPeerDatabase({ fen: this.fen, rating: this.effectivePeerRating(), speed: this.explorerLichessSpeed === 'all' ? 'ultraBullet,bullet,blitz,rapid,classical,correspondence' : this.explorerLichessSpeed, token });
+        ? await fetchMastersDatabase({ fen: this.fen, years, token })
+        : await fetchPeerDatabase({ fen: this.fen, rating: this.effectivePeerRating(), speed: this.explorerLichessSpeed === 'all' ? 'ultraBullet,bullet,blitz,rapid,classical,correspondence' : this.explorerLichessSpeed, years, token });
       if (runId !== this.runId) return;
       const moves = [...(db.moves?.entries?.() ?? [])]
         .map(([uci, counts]) => ({ uci, counts, games: gamesOf(counts) }))
@@ -912,6 +949,81 @@ export class EvalPanel {
     this.autoRefineExplorer();
   }
 
+  // Button and listbox dropdown shared by the Database view's tempo and time-range
+  // controls. onPick(value) returns false to keep the current choice. onButtonClick()
+  // returns true when it handled the click itself instead of opening the list.
+  buildExplorerDropdown({ key, className, ariaLabel, options, selected, label, onPick, onButtonClick = null, onOutsideClick = null }) {
+    const wrap = el('div', `${className} eval-dropdown`);
+    const button = el('button', 'eval-dd-btn');
+    button.type = 'button';
+    button.setAttribute('aria-haspopup', 'listbox');
+    button.setAttribute('aria-expanded', 'false');
+    const buttonLabel = el('span', '', label);
+    const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    arrow.setAttribute('viewBox', '0 0 24 24');
+    arrow.setAttribute('aria-hidden', 'true');
+    const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    arrowPath.setAttribute('fill', 'none');
+    arrowPath.setAttribute('stroke', 'currentColor');
+    arrowPath.setAttribute('stroke-width', '2');
+    arrowPath.setAttribute('stroke-linecap', 'round');
+    arrowPath.setAttribute('stroke-linejoin', 'round');
+    arrowPath.setAttribute('d', 'M6 9l6 6 6-6');
+    arrow.append(arrowPath);
+    button.append(buttonLabel, arrow);
+
+    const list = el('ul', 'eval-dd-list');
+    list.setAttribute('role', 'listbox');
+    list.setAttribute('aria-label', ariaLabel);
+    list.hidden = true;
+    const closeList = () => {
+      list.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    };
+    const items = options.map((option) => {
+      const item = el('li', 'eval-dd-item', option.label);
+      item.setAttribute('role', 'option');
+      item.dataset.value = option.value;
+      if (option.value === selected) item.classList.add('selected');
+      item.addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeList();
+        if (onPick(option.value) === false) return;
+        buttonLabel.textContent = option.label;
+        items.forEach((entry) => entry.classList.toggle('selected', entry.dataset.value === option.value));
+      });
+      return item;
+    });
+    list.append(...items);
+
+    button.addEventListener('click', (event) => {
+      if (button.disabled) return;
+      event.stopPropagation();
+      if (onButtonClick?.()) {
+        closeList();
+        return;
+      }
+      const open = list.hidden;
+      list.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+    });
+
+    // One outside-click listener per dropdown; the previous render's listener is removed.
+    this._explorerDropdownHandlers ??= new Map();
+    const previous = this._explorerDropdownHandlers.get(key);
+    if (previous) document.removeEventListener('click', previous);
+    const outside = (event) => {
+      if (wrap.contains(event.target)) return;
+      closeList();
+      onOutsideClick?.();
+    };
+    this._explorerDropdownHandlers.set(key, outside);
+    document.addEventListener('click', outside);
+
+    wrap.append(button, list);
+    return { wrap, button, buttonLabel };
+  }
+
   renderExplorer() {
     this.body.replaceChildren();
     // source switch
@@ -926,9 +1038,9 @@ export class EvalPanel {
     );
     this.explorerSourceGroup.setValue(this.explorerSource);
     const srcWrap = el('div', 'eval-explorer-source');
-    const tempoWrap = el('div', 'eval-explorer-tempo eval-dropdown');
+    const mastersView = this.explorerSource === 'masters';
     const tempoOptions = [
-      { value: 'all', label: 'All' },
+      { value: 'all', label: 'Any tempo' },
       { value: 'ultraBullet', label: 'UltraBullet' },
       { value: 'bullet', label: 'Bullet' },
       { value: 'blitz', label: 'Blitz' },
@@ -936,71 +1048,91 @@ export class EvalPanel {
       { value: 'classical', label: 'Classical' },
       { value: 'correspondence', label: 'Correspondence' },
     ];
-    const speedLabel = (value) => tempoOptions.find((option) => option.value === value)?.label ?? 'All';
-
-    const tempoBtn = el('button', 'eval-dd-btn');
-    tempoBtn.type = 'button';
-    tempoBtn.setAttribute('aria-haspopup', 'listbox');
-    tempoBtn.setAttribute('aria-expanded', 'false');
-    const tempoBtnLabel = el('span', '', speedLabel(this.explorerLichessSpeed));
-    const tempoArrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    tempoArrow.setAttribute('viewBox', '0 0 24 24');
-    tempoArrow.setAttribute('aria-hidden', 'true');
-    const tempoArrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    tempoArrowPath.setAttribute('fill', 'none');
-    tempoArrowPath.setAttribute('stroke', 'currentColor');
-    tempoArrowPath.setAttribute('stroke-width', '2');
-    tempoArrowPath.setAttribute('stroke-linecap', 'round');
-    tempoArrowPath.setAttribute('stroke-linejoin', 'round');
-    tempoArrowPath.setAttribute('d', 'M6 9l6 6 6-6');
-    tempoArrow.append(tempoArrowPath);
-    tempoBtn.append(tempoBtnLabel, tempoArrow);
-
-    const tempoList = el('ul', 'eval-dd-list');
-    tempoList.setAttribute('role', 'listbox');
-    tempoList.setAttribute('aria-label', 'Lichess game tempo');
-    tempoList.hidden = true;
-    for (const option of tempoOptions) {
-      const item = el('li', 'eval-dd-item', option.label);
-      item.setAttribute('role', 'option');
-      item.dataset.value = option.value;
-      if (option.value === this.explorerLichessSpeed) item.classList.add('selected');
-      item.addEventListener('click', (event) => {
-        event.stopPropagation();
-        this.setExplorerLichessSpeed(option.value);
-        tempoBtnLabel.textContent = speedLabel(this.explorerLichessSpeed);
-        tempoList.querySelectorAll('.eval-dd-item').forEach((entry) => {
-          entry.classList.toggle('selected', entry.dataset.value === this.explorerLichessSpeed);
-        });
-        tempoList.hidden = true;
-        tempoBtn.setAttribute('aria-expanded', 'false');
-      });
-      tempoList.append(item);
-    }
-
-    tempoBtn.addEventListener('click', (event) => {
-      if (tempoBtn.disabled) return;
-      event.stopPropagation();
-      const open = tempoList.hidden;
-      tempoList.hidden = !open;
-      tempoBtn.setAttribute('aria-expanded', String(open));
+    const speedLabel = (value) => tempoOptions.find((option) => option.value === value)?.label ?? 'Any tempo';
+    const tempo = this.buildExplorerDropdown({
+      key: 'tempo',
+      className: 'eval-explorer-tempo',
+      ariaLabel: 'Lichess game tempo',
+      options: tempoOptions,
+      selected: this.explorerLichessSpeed,
+      label: speedLabel(this.explorerLichessSpeed),
+      onPick: (value) => this.setExplorerLichessSpeed(value),
     });
+    tempo.wrap.classList.toggle('is-disabled', mastersView);
+    tempo.button.disabled = mastersView;
+    tempo.buttonLabel.textContent = mastersView ? '(Classical only)' : speedLabel(this.explorerLichessSpeed);
 
-    if (this._tempoOutsideHandler) document.removeEventListener('click', this._tempoOutsideHandler);
-    this._tempoOutsideHandler = (event) => {
-      if (!tempoWrap.contains(event.target)) {
-        tempoList.hidden = true;
-        tempoBtn.setAttribute('aria-expanded', 'false');
+    // Time range: the Custom picker is a popover of two year selects inside the dropdown.
+    const nowYear = new Date().getFullYear();
+    const yearSelect = (label) => {
+      const select = el('select', 'eval-range-select');
+      select.setAttribute('aria-label', label);
+      for (let year = EXPLORER_FIRST_YEAR; year <= nowYear; year++) {
+        const option = el('option', '', String(year));
+        option.value = String(year);
+        select.append(option);
       }
+      return select;
     };
-    document.addEventListener('click', this._tempoOutsideHandler);
+    const fromSelect = yearSelect('From year');
+    const toSelect = yearSelect('To year');
+    const rangePop = el('div', 'eval-range-pop');
+    rangePop.hidden = true;
+    rangePop.setAttribute('role', 'dialog');
+    rangePop.setAttribute('aria-label', 'Custom year range');
+    const closeRangePicker = () => { rangePop.hidden = true; };
+    const openRangePicker = () => {
+      const current = this.explorerRange.value === 'custom'
+        ? this.explorerRange
+        : { from: nowYear - 10, to: nowYear };
+      fromSelect.value = String(current.from);
+      toSelect.value = String(current.to);
+      rangePop.hidden = false;
+    };
+    fromSelect.addEventListener('change', () => {
+      if (Number(fromSelect.value) > Number(toSelect.value)) toSelect.value = fromSelect.value;
+    });
+    toSelect.addEventListener('change', () => {
+      if (Number(toSelect.value) < Number(fromSelect.value)) fromSelect.value = toSelect.value;
+    });
+    const applyBtn = el('button', 'eval-range-apply', 'Apply');
+    applyBtn.type = 'button';
+    applyBtn.addEventListener('click', () => {
+      this.setExplorerRange({ value: 'custom', from: Number(fromSelect.value), to: Number(toSelect.value) });
+    });
+    const cancelBtn = el('button', 'eval-range-cancel', 'Cancel');
+    cancelBtn.type = 'button';
+    cancelBtn.addEventListener('click', closeRangePicker);
+    const rangeRow = el('div', 'eval-range-row');
+    rangeRow.append(fromSelect, el('span', 'eval-range-sep', '–'), toSelect);
+    const rangeActions = el('div', 'eval-range-actions');
+    rangeActions.append(cancelBtn, applyBtn);
+    rangePop.append(rangeRow, rangeActions);
+    const range = this.buildExplorerDropdown({
+      key: 'range',
+      className: 'eval-explorer-range',
+      ariaLabel: 'Games from years',
+      options: EXPLORER_RANGE_PRESETS,
+      selected: this.explorerRange.value,
+      label: this.explorerRangeLabel(),
+      onPick: (value) => {
+        if (value === 'custom') {
+          openRangePicker();
+          return false;
+        }
+        this.setExplorerRange({ value });
+      },
+      // With Custom active, the label itself opens the year picker.
+      onButtonClick: () => {
+        if (this.explorerRange.value !== 'custom') return false;
+        openRangePicker();
+        return true;
+      },
+      onOutsideClick: closeRangePicker,
+    });
+    range.wrap.append(rangePop);
 
-    tempoWrap.append(tempoBtn, tempoList);
-    const mastersView = this.explorerSource === 'masters';
-    tempoWrap.classList.toggle('is-disabled', mastersView);
-    tempoBtn.disabled = mastersView;
-    tempoBtnLabel.textContent = mastersView ? '(Classical only)' : speedLabel(this.explorerLichessSpeed);
-    srcWrap.append(srcContainer, tempoWrap);
+    srcWrap.append(srcContainer, tempo.wrap, range.wrap);
     this.body.append(srcWrap);
 
     const view = this.explorerView;
@@ -1046,7 +1178,7 @@ export class EvalPanel {
       return;
     }
     if (!view.moves.length) {
-      this.body.append(el('p', 'eval-empty', 'No moves.'));
+      this.body.append(el('p', 'eval-empty', 'Position not found'));
       return;
     }
     // header

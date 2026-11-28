@@ -1991,6 +1991,7 @@ main {
 
 .eval-explorer-source {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -2018,6 +2019,77 @@ main {
 
 .eval-explorer-tempo .eval-dd-list {
   min-width: 118px;
+}
+
+.eval-explorer-range {
+  min-width: 118px;
+}
+
+.eval-explorer-range .eval-dd-btn,
+.eval-explorer-range .eval-dd-item {
+  font-family: "Geist Sans", sans-serif;
+  font-size: 12px;
+}
+
+.eval-explorer-range .eval-dd-list {
+  min-width: 118px;
+}
+
+.eval-range-pop {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--dropdown-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  font-family: "Geist Sans", sans-serif;
+  font-size: 12px;
+}
+
+.eval-range-pop[hidden] {
+  display: none;
+}
+
+.eval-range-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+}
+
+.eval-range-select {
+  font: inherit;
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--text-main) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-dim) 35%, transparent);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+
+.eval-range-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.eval-range-actions button {
+  font: inherit;
+  padding: 3px 10px;
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--text-main) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-dim) 35%, transparent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.eval-range-actions .eval-range-apply {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 #analysis-mode .eval-seg-btn,
