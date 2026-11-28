@@ -333,6 +333,8 @@ export class EvalPanel {
     this.hoverFen = null;
     // Called with a UCI line (from the current position) when a continuation move is clicked.
     this.onPickLine = null;
+    // Called with the engine lines for the current position, or [] when none should be drawn on the board.
+    this.onLinesChange = null;
     this.toggle = doc.getElementById('eval-toggle');
     this.modeGroup = segmentedGroup(
       doc.getElementById('analysis-mode'),
@@ -351,6 +353,7 @@ export class EvalPanel {
     this.ratingLabel = doc.getElementById('eval-rating-label');
     this.ratingList = doc.getElementById('eval-rating-list');
     this.previewInput = doc.getElementById('eval-preview');
+    this.engineArrowsInput = doc.getElementById('eval-engine-arrows');
     this.explorerScoresInput = doc.getElementById('explorer-scores');
     this.tokenInput = doc.getElementById('eval-token');
     this.tokenCheck = doc.getElementById('eval-token-check');
@@ -460,6 +463,7 @@ export class EvalPanel {
     this.bindPick();
     if (this.toggle) this.toggle.addEventListener('change', () => this.setEnabled(this.toggle.checked));
     this.previewInput.addEventListener('change', () => this.updateSettings({ preview: this.previewInput.checked }));
+    this.engineArrowsInput?.addEventListener('change', () => this.updateSettings({ showEngineArrows: this.engineArrowsInput.checked }));
     this.explorerScoresInput?.addEventListener('change', () => this.updateSettings({ explorerScores: this.explorerScoresInput.checked }));
     // The token is applied only after Check validates it (see checkToken).
     this.tokenCheck?.addEventListener('click', (event) => { event.preventDefault(); this.checkToken(); });
@@ -778,6 +782,10 @@ export class EvalPanel {
     this.playRateViewGroup.setValue(this.settings.playRateView);
     this.resultsViewGroup.setValue(this.settings.resultsView);
     this.previewInput.checked = this.settings.preview;
+    if (this.engineArrowsInput) {
+      this.engineArrowsInput.checked = this.settings.showEngineArrows;
+      this.engineArrowsInput.closest('.settings-item')?.setAttribute('aria-checked', String(this.settings.showEngineArrows));
+    }
     if (this.explorerScoresInput) this.explorerScoresInput.checked = this.settings.explorerScores;
     this.tokenInput.value = this.settings.token;
     this.tokenInput.placeholder = this.settings.token ? '' : 'Not set';
@@ -1322,7 +1330,7 @@ export class EvalPanel {
     // does not blank out between positions; they are replaced as soon as the
     // engine streams the first update.
     const previousLines = this.view?.lines?.length ? this.view.lines : [];
-    this.view = { state: 'loading', fen, lines: previousLines, maia: null, errors: [] };
+    this.view = { state: 'loading', fen, lines: previousLines, staleLines: true, maia: null, errors: [] };
     this.render();
 
     if (runId !== this.runId) return;
@@ -1337,7 +1345,7 @@ export class EvalPanel {
     }
     {
       const previousLines = this.view?.lines?.length ? this.view.lines : [];
-      this.view = { state: 'searching', fen, lines: previousLines, progress: 0 };
+      this.view = { state: 'searching', fen, lines: previousLines, staleLines: true, progress: 0 };
       this.render();
       result = await this.engine.analyze({
         fen,
@@ -1345,7 +1353,7 @@ export class EvalPanel {
         nodes: QUALITY_LEVELS[quality].nodes * count,
         onUpdate: (lines) => {
           if (runId !== this.runId) return;
-          this.view = { ...this.view, state: 'searching', fen, lines };
+          this.view = { ...this.view, state: 'searching', fen, lines, staleLines: false };
           this.render();
         },
         onProgress: (progress) => {
@@ -1870,10 +1878,27 @@ export class EvalPanel {
     this.body.append(card);
   }
 
+  // Reports the lines to draw as board arrows. Lines are withheld while they
+  // belong to a previous position (see staleLines in run()).
+  notifyLines() {
+    if (!this.onLinesChange) return;
+    const view = this.view;
+    const fresh =
+      this.enabled &&
+      this.mode === 'engineLines' &&
+      this.settings.showEngineArrows &&
+      view &&
+      view.fen === this.fen &&
+      !view.staleLines &&
+      (view.state === 'searching' || view.state === 'scoring' || view.state === 'done');
+    this.onLinesChange(fresh ? view.lines : []);
+  }
+
   render() {
     // Rows are replaced here, so a tooltip on a removed node would never get its mouseleave.
     hideTip();
     this.maiaProgress = null;
+    this.notifyLines();
     if (this.toggle) this.toggle.checked = this.enabled;
     // Collapse the section to its header while analysis is off.
     this.section.classList.toggle('collapsed', this.mode === 'off');

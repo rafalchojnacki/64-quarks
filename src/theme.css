@@ -33,6 +33,86 @@ cg-board {
   box-shadow: 0 0 12px rgba(60, 60, 60, 0.25);
 }
 
+/* Arrows and circles fully opaque (Chessground's base CSS sets 0.6). */
+#board .cg-wrap .cg-shapes {
+  opacity: 1;
+}
+
+/* White outline around arrows and circles on dark pages only. */
+:root:not([data-theme="birch"]):not([data-theme="paper"]) #board .cg-wrap .cg-shapes {
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
+}
+
+/*
+ * Swept delta arrowhead: a filled triangle with a notched back and a sharp tip, in the arrow's color.
+ * Coordinates are in marker units, which scale with the line width.
+ */
+.cg-wrap .cg-shapes marker path {
+  d: path('M1,0.5 L3.5,2 L1,3.5 L2.05,2 Z');
+  stroke-width: 0.4;
+  stroke-linejoin: round;
+}
+/*
+ * Arrow and circle colors. Dark pages (default, navy, graphite, walnut) get muted
+ * shades; light pages (birch, paper) get the brighter ones. *-tail is the lighter
+ * end of each arrow's gradient.
+ */
+:root {
+  --arrow-green: #0f4a1c;
+  --arrow-green-tail: #0f4a1c;
+  --arrow-red: #5a1515;
+  --arrow-red-tail: #5a1515;
+  --arrow-blue: #0b2a66;
+  --arrow-blue-tail: #0b2a66;
+  --arrow-yellow: #7a5000;
+  --arrow-yellow-tail: #7a5000;
+  --arrow-grey: #3a3f48;
+  --arrow-grey-tail: #3a3f48;
+  --arrow-black: #000000;
+  --arrow-black-tail: #000000;
+}
+:root[data-theme="birch"],
+:root[data-theme="paper"] {
+  --arrow-green: #15781b;
+  --arrow-green-tail: #4f9a54;
+  --arrow-red: #882020;
+  --arrow-red-tail: #a65858;
+  --arrow-blue: #003088;
+  --arrow-blue-tail: #4064a6;
+  --arrow-yellow: #e68f00;
+  --arrow-yellow-tail: #ecab40;
+  --arrow-grey: #5f6570;
+  --arrow-grey-tail: #878b94;
+}
+
+/* Arrow gradient stops (set in main.js by brush name). */
+.arrow-head.arrow-green { stop-color: var(--arrow-green); }
+.arrow-tail.arrow-green { stop-color: var(--arrow-green-tail); }
+.arrow-head.arrow-red { stop-color: var(--arrow-red); }
+.arrow-tail.arrow-red { stop-color: var(--arrow-red-tail); }
+.arrow-head.arrow-blue { stop-color: var(--arrow-blue); }
+.arrow-tail.arrow-blue { stop-color: var(--arrow-blue-tail); }
+.arrow-head.arrow-yellow { stop-color: var(--arrow-yellow); }
+.arrow-tail.arrow-yellow { stop-color: var(--arrow-yellow-tail); }
+.arrow-head.arrow-grey { stop-color: var(--arrow-grey); }
+.arrow-tail.arrow-grey { stop-color: var(--arrow-grey-tail); }
+.arrow-head.arrow-black { stop-color: var(--arrow-black); }
+.arrow-tail.arrow-black { stop-color: var(--arrow-black-tail); }
+
+/* Arrowheads. */
+#arrowhead-g path { fill: var(--arrow-green); stroke: var(--arrow-green); }
+#arrowhead-r path { fill: var(--arrow-red); stroke: var(--arrow-red); }
+#arrowhead-b path { fill: var(--arrow-blue); stroke: var(--arrow-blue); }
+#arrowhead-y path { fill: var(--arrow-yellow); stroke: var(--arrow-yellow); }
+#arrowhead-gy path { fill: var(--arrow-grey); stroke: var(--arrow-grey); }
+#arrowhead-bk path { fill: var(--arrow-black); stroke: var(--arrow-black); }
+
+/* Drawn circles, matched by their base brush color. */
+.cg-wrap .cg-shapes circle[stroke="#15781B"] { stroke: var(--arrow-green); }
+.cg-wrap .cg-shapes circle[stroke="#882020"] { stroke: var(--arrow-red); }
+.cg-wrap .cg-shapes circle[stroke="#003088"] { stroke: var(--arrow-blue); }
+.cg-wrap .cg-shapes circle[stroke="#e68f00"] { stroke: var(--arrow-yellow); }
+
 /* Pieces (backed by --piece-* custom properties set in main.js) */
 .cg-wrap piece.pawn.white { background-image: var(--piece-wP, url('/piece/staunty/wP.svg')); }
 .cg-wrap piece.bishop.white { background-image: var(--piece-wB, url('/piece/staunty/wB.svg')); }

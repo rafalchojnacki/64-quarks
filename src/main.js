@@ -249,11 +249,22 @@ function newNodeId() {
   return id;
 }
 
+// Chessground's default colors, with slimmer lines (its default lineWidth is 10).
+const SHAPE_BRUSHES = {
+  green: { key: 'g', color: '#15781B', opacity: 1, lineWidth: 7 },
+  red: { key: 'r', color: '#882020', opacity: 1, lineWidth: 7 },
+  blue: { key: 'b', color: '#003088', opacity: 1, lineWidth: 7 },
+  yellow: { key: 'y', color: '#e68f00', opacity: 1, lineWidth: 7 },
+  // Engine lines. Best line is black, the rest grey.
+  black: { key: 'bk', color: '#000000', opacity: 1, lineWidth: 7 },
+  grey: { key: 'gy', color: '#5f6570', opacity: 1, lineWidth: 7 },
+};
+
 const ground = Chessground(boardEl, {
   fen: START_FEN,
   coordinates: false,
   viewOnly: false,
-  drawable: { enabled: false },
+  drawable: { enabled: true, onChange: onShapesChange, brushes: SHAPE_BRUSHES },
   movable: {
     free: false,
     showDests: true,
@@ -369,12 +380,105 @@ function saveState() {
   }
 }
 
+// Called by the board whenever the user draws or clears shapes. They are stored on the current node.
+function onShapesChange(shapes) {
+  const node = currentNode();
+  if (!node) return;
+  if (shapes.length) node.shapes = shapes.map((shape) => ({ ...shape }));
+  else delete node.shapes;
+  saveState();
+}
+
+// Engine lines are drawn as grey arrows, with the same brush as drawn arrows.
+// No per-shape width: a custom width would rename the arrowhead marker and lose its styling.
+function engineArrowShapes(lines) {
+  return lines.slice(0, 6).flatMap((line, index) => {
+    const uci = line.pv[0];
+    if (!uci) return [];
+    return [
+      {
+        orig: uci.slice(0, 2),
+        dest: uci.slice(2, 4),
+        brush: index === 0 ? 'black' : 'grey',
+      },
+    ];
+  });
+}
+
+// Each arrow's shaft fades in from a lighter tint at its tail to its brush color at the head.
+// Chessground draws arrows as flat-colored lines, so one gradient per arrow is kept in sync
+// with the line's own x1,y1 (tail) and x2,y2 (head) coordinates.
+// Maps each brush color to its name. The name picks the theme.css colors for light and dark pages.
+const ARROW_BRUSH_NAMES = {
+  '#15781B': 'green',
+  '#882020': 'red',
+  '#003088': 'blue',
+  '#e68f00': 'yellow',
+  '#000000': 'black',
+  '#5f6570': 'grey',
+};
+const arrowTailDefs = document.getElementById('arrow-tail-defs');
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function paintArrowTails() {
+  const lines = [...boardEl.querySelectorAll('.cg-shapes line')];
+  lines.forEach((line, index) => {
+    // Remember the brush color, since the stroke attribute is replaced below.
+    const base = line.dataset.base ?? line.getAttribute('stroke');
+    if (!base) return;
+    line.dataset.base = base;
+
+    const id = `arrow-tail-${index}`;
+    let gradient = arrowTailDefs.querySelector(`#${id}`);
+    if (!gradient) {
+      gradient = document.createElementNS(SVG_NS, 'linearGradient');
+      gradient.id = id;
+      gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+      for (const offset of ['0', '1']) {
+        const stop = document.createElementNS(SVG_NS, 'stop');
+        stop.setAttribute('offset', offset);
+        gradient.appendChild(stop);
+      }
+      arrowTailDefs.appendChild(gradient);
+    }
+    gradient.setAttribute('x1', line.getAttribute('x1'));
+    gradient.setAttribute('y1', line.getAttribute('y1'));
+    gradient.setAttribute('x2', line.getAttribute('x2'));
+    gradient.setAttribute('y2', line.getAttribute('y2'));
+    const [tailStop, headStop] = gradient.querySelectorAll('stop');
+    // Colors come from theme.css (per page theme), selected by the brush name.
+    const name = ARROW_BRUSH_NAMES[base] ?? 'grey';
+    tailStop.setAttribute('class', `arrow-tail arrow-${name}`);
+    headStop.setAttribute('class', `arrow-head arrow-${name}`);
+    line.setAttribute('stroke', `url(#${id})`);
+  });
+  while (arrowTailDefs.children.length > lines.length) arrowTailDefs.lastElementChild.remove();
+}
+
+// Chessground redraws its shapes on its own (while dragging, on moves, on setShapes),
+// so the tails are repainted whenever arrow lines change.
+const arrowObserver = new MutationObserver(() => {
+  arrowObserver.disconnect();
+  paintArrowTails();
+  observeArrows();
+});
+function observeArrows() {
+  arrowObserver.observe(boardEl, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['x1', 'y1', 'x2', 'y2', 'stroke'],
+  });
+}
+observeArrows();
+
 function refresh() {
   const entry = currentNode();
   currentFen = entry.fen;
   syncMoveSelection();
   const ori = orientation();
   const turn = turnColor(currentFen);
+  ground.setShapes(entry.shapes ? entry.shapes.map((shape) => ({ ...shape })) : []);
   ground.set({
     fen: currentFen,
     orientation: ori,
@@ -848,6 +952,7 @@ function playUciLine(ucis) {
 }
 
 evalPanel.onPickLine = playUciLine;
+evalPanel.onLinesChange = (lines) => ground.setAutoShapes(engineArrowShapes(lines));
 
 function isSideVariation(entry) {
   const parent = parentOf(entry);
@@ -1014,7 +1119,7 @@ function hasAnnotations() {
   let found = false;
   const walk = (node) => {
     if (found) return;
-    if (node.moveGlyph !== null || node.positionGlyph !== null || node.engineEval !== null) {
+    if (node.moveGlyph !== null || node.positionGlyph !== null || node.engineEval !== null || node.shapes) {
       found = true;
       return;
     }
@@ -1024,12 +1129,13 @@ function hasAnnotations() {
   return found;
 }
 
-// Removes every move glyph, position glyph, and engine-eval marker from the game.
+// Removes every move glyph, position glyph, engine-eval marker and drawn shape from the game.
 function clearAnnotations() {
   const walk = (node) => {
     node.moveGlyph = null;
     node.positionGlyph = null;
     node.engineEval = null;
+    delete node.shapes;
     node.children.forEach(walk);
   };
   walk(moveTree);

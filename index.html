@@ -24,6 +24,10 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
+    <!-- Tail gradients for drawn arrows. main.js fills in one per arrow. -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+      <defs id="arrow-tail-defs"></defs>
+    </svg>
     <main>
       <div class="board-area">
         <div class="board-and-panel">
@@ -153,6 +157,14 @@
                             <span class="settings-item-desc">Show a small board when hovering a continuation move</span>
                           </span>
                           <input id="eval-preview" type="checkbox" />
+                          <span class="settings-switch" aria-hidden="true"></span>
+                        </label>
+                        <label class="settings-item" role="menuitemcheckbox" aria-checked="false">
+                          <span class="settings-item-label">
+                            <span class="settings-item-title">Engine arrows</span>
+                            <span class="settings-item-desc">Draw the engine lines as arrows on the board</span>
+                          </span>
+                          <input id="eval-engine-arrows" type="checkbox" />
                           <span class="settings-switch" aria-hidden="true"></span>
                         </label>
                       </div>
